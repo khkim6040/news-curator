@@ -1,0 +1,42 @@
+{
+  "feeds": [
+    {
+      "name": "GeekNews",
+      "url": "https://news.hada.io/rss/news",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
+      }
+    },
+    {
+      "name": "Hacker News",
+      "url": "https://hnrss.org/frontpage",
+      "headers": {}
+    },
+    {
+      "name": "InfoQ",
+      "url": "https://feed.infoq.com/",
+      "headers": {}
+    }
+  ],
+  "curator": {
+    "model": "claude-haiku-4-5-20251001",
+    "persona": "Your role and interests here",
+    "interests": [
+      "Interest 1",
+      "Interest 2"
+    ],
+    "max_articles": 20
+  },
+  "notion": {
+    "token": "ntn_YOUR_NOTION_TOKEN_HERE",
+    "database_id": "YOUR_DATABASE_ID_HERE"
+  },
+  "scoring": {
+    "min_score": 4,
+    "max_articles_per_source": 8,
+    "max_age_days": 3
+  },
+  "db": {
+    "retention_days": 30
+  }
+}
