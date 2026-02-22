@@ -50,15 +50,22 @@ cron으로 매일 자동 실행 예시:
 
 ## 설정 항목 (`config.json`)
 
+필수 설정은 3개뿐이고, 나머지는 기본값이 적용됩니다.
+
+**필수:**
+
 | 섹션 | 키 | 설명 |
 |------|----|------|
-| `feeds[]` | `name`, `url`, `headers` | RSS/Atom 피드 소스 |
-| `curator` | `model` | Claude 모델 (기본: `claude-haiku-4-5-20251001`) |
-| `curator` | `persona` | 큐레이터 페르소나 설명 |
-| `curator` | `interests` | 관심 분야 목록 |
-| `curator` | `max_articles` | 최종 선별 최대 기사 수 |
+| `feeds[]` | `name`, `url` | RSS/Atom 피드 소스 |
+| `curator` | `persona`, `interests` | 큐레이터 페르소나 및 관심 분야 |
 | `notion` | `token`, `database_id` | Notion API 인증 정보 |
-| `scoring` | `min_score` | 최소 선별 점수 (1-10) |
-| `scoring` | `max_articles_per_source` | 피드당 최대 수집 수 |
-| `scoring` | `max_age_days` | 기사 최대 허용 일수 |
-| `db` | `retention_days` | SQLite 중복 기록 보관 기간 |
+
+**선택 (기본값 있음):**
+
+| 섹션 | 키 | 기본값 | 설명 |
+|------|----|--------|------|
+| `curator` | `max_articles` | `20` | 최종 선별 최대 기사 수 |
+| `scoring` | `min_score` | `4` | 최소 선별 점수 (1-10) |
+| `scoring` | `max_articles_per_source` | `15` | 피드당 최대 수집 수 |
+| `scoring` | `max_age_days` | `3` | 기사 최대 허용 일수 |
+| `db` | `retention_days` | `30` | SQLite 중복 기록 보관 기간 |
