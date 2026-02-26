@@ -68,7 +68,8 @@ def parse_pub_date(date_str: str) -> datetime | None:
     except Exception:
         pass
     # ISO 8601 (Atom): "2026-02-22T10:30:00Z"
-    for fmt in ("%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%d"):
+    for fmt in ("%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S%z",
+                 "%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%S.%f%z", "%Y-%m-%d"):
         try:
             dt = datetime.strptime(date_str, fmt)
             if dt.tzinfo is None:
@@ -217,8 +218,8 @@ def _build_prompt(articles: list[Article], config: dict) -> str:
         )
     article_text = "\n\n".join(lines)
 
-    return f"""당신은 기술 뉴스 큐레이터입니다.
-사용자의 관심사와 역할에 맞는 기사를 선별하고, 각 기사의 관련성을 평가합니다.
+    return f"""당신은 10년 차 시니어 핀테크 백엔드 엔지니어이자 테크 리드입니다.
+단순한 '신기술 소개'보다는 시스템 안정성, 대용량 트래픽 처리, 데이터 무결성(Data Integrity), 보안에 초점을 맞춰 기사를 평가합니다.
 
 사용자 프로필:
 {cur["persona"]}
@@ -226,44 +227,49 @@ def _build_prompt(articles: list[Article], config: dict) -> str:
 관심 분야:
 {interests}
 
-## 채점 루브릭 (반드시 준수)
+## 채점 루브릭 (Fintech Backend Specialized)
 
-9-10점 [필독]: 아키텍처 설계, 코드 레벨 해결책, 대규모 트래픽 처리 경험이 상세히 기술된 포스트. 실무에 바로 적용 가능한 깊이.
-7-8점 [추천]: 새로운 백엔드/AI 기술 동향, 실제 도입 사례, 깊이 있는 튜토리얼. 새로운 인사이트 제공.
-4-6점 [참고]: 가볍게 읽을 만한 IT 업계 동향 및 개념 소개. 배경 지식으로 유용.
-1-3점 [제외]: 프로필과 무관하거나 기술적 깊이가 없는 기사. 아래 제외 기준에 해당.
+9-10점 [필독 - 아키텍처/Deep Dive]:
+- 금융 도메인(원장 설계, 트랜잭션, 정합성)과 직접 관련된 심층 기술 아티클.
+- 대규모 트래픽 분산 처리, 장애 대응(Failover), 데이터베이스 락킹/격리 수준에 대한 실무적 경험 공유.
+- 핀테크 보안 규제(망분리, 개인정보 암호화)와 관련된 기술적 해법.
 
-## 제외 기준 (즉시 3점 이하 처리)
+7-8점 [추천 - Best Practice]:
+- Java/Kotlin/Spring Boot, DB(MySQL, Redis), Kafka 등 백엔드 코어 기술의 성능 최적화 사례.
+- MSA 전환, CI/CD 파이프라인 개선 등 생산성 향상 사례.
+- AI/LLM의 실무 적용 사례 (개발 생산성, 코드 리뷰 자동화 등).
 
-다음에 해당하는 기사는 즉시 3점 이하로 평가하고 결과에서 제외할 것:
-- 주가 동향, 시세 정보, 투자 전망
-- 단순 인사 동정, 경영진 변경
-- 암호화폐/NFT 시세 및 투기 관련
-- 마케팅성 보도자료, 제품 출시 홍보
-- 비기술적인 스타트업 투자 유치 기사
-- 기술적 깊이 없이 용어만 나열한 기사
+4-6점 [참고 - 일반 동향]:
+- 클라우드 벤더(AWS/GCP)의 신규 기능 중 백엔드와 연관된 것.
+- 일반적인 개발 방법론이나 소프트 스킬.
+
+1-3점 [제외]:
+- 프론트엔드(React, CSS 등), 모바일 UI/UX 전용 기사.
+- 기술적 내용이 없는 단순 제품 홍보, 투자 유치, 경영진 인터뷰.
+- 주가 변동, 암호화폐 시세 등 '투자 정보'.
+- 기술적 깊이 없이 용어만 나열한 기사.
 
 ## 규칙
 
 1. 각 기사를 위 루브릭에 따라 1-10점으로 평가
 2. {min_score}점 이상인 기사만 선택
 3. 최대 {max_articles}개까지 선택
-4. 요약: 기사의 '핵심 문제(Problem)'와 도입된 '기술적 해결책(Solution)'을 중심으로 3문장 이내로 한국어 요약
+4. 요약: [문제 상황] → [기술적 해결책] → [결과/Key Takeaway] 구조로 건조하게 3문장 이내 한국어 요약. "유익한 기사입니다" 같은 미사여구 금지.
 5. 한국어 태그 1-3개 부여
-6. 선택 이유를 한 줄로 작성
+6. reason: "왜 내가 이걸 읽어야 하는가"를 구체적으로 작성. 현재 업무에 어떻게 적용 가능한지 한 줄로 서술.
 
 반드시 아래 JSON 배열 형식으로만 응답하세요 (다른 텍스트 없이):
 [
   {{
     "index": 0,
     "score": 8,
-    "summary": "한국어 요약 — 문제와 해결책 중심 3문장 이내",
+    "summary": "[문제] ... → [해결] ... → [결과] ...",
     "tags": ["태그1", "태그2"],
-    "reason": "선택 이유 한 줄"
+    "reason": "현재 결제 모듈 리팩토링에 참고할 수 있는 DB Deadlock 해결 패턴 포함"
   }}
 ]
 
-관심 분야와 전혀 관련 없으면 빈 배열 []을 반환하세요.
+{min_score}점 이상인 기사가 없으면 빈 배열 []을 반환하세요.
 
 ---
 
@@ -292,6 +298,9 @@ def curate_with_claude(articles: list[Article], config: dict) -> list[Article]:
     except FileNotFoundError:
         log.error("'claude' CLI not found. Install: npm install -g @anthropic-ai/claude-code")
         return []
+    except Exception as e:
+        log.error("Claude CLI unexpected error: %s", e)
+        return []
 
     if result.returncode != 0:
         log.error("Claude CLI error (exit %d): %s", result.returncode, result.stderr[:500])
@@ -311,14 +320,23 @@ def curate_with_claude(articles: list[Article], config: dict) -> list[Article]:
     try:
         selections = json.loads(text)
     except json.JSONDecodeError:
-        match = re.search(r"\[.*\]", text, re.DOTALL)
-        if match:
-            try:
-                selections = json.loads(match.group())
-            except json.JSONDecodeError as e:
-                log.error("Failed to parse Claude JSON: %s\nResponse: %.500s", e, text)
-                return []
-        else:
+        # Find the first balanced [...] using bracket depth tracking
+        selections = None
+        start = text.find('[')
+        if start >= 0:
+            depth = 0
+            for i in range(start, len(text)):
+                if text[i] == '[':
+                    depth += 1
+                elif text[i] == ']':
+                    depth -= 1
+                    if depth == 0:
+                        try:
+                            selections = json.loads(text[start:i+1])
+                        except json.JSONDecodeError as e:
+                            log.error("Failed to parse Claude JSON: %s\nResponse: %.500s", e, text)
+                        break
+        if selections is None:
             log.error("No JSON array in Claude response: %.500s", text)
             return []
 
@@ -384,11 +402,30 @@ def _notion_request(endpoint: str, token: str, payload: dict, method: str = "POS
         raise
 
 
+def _estimate_reading_time(description: str) -> str:
+    """Estimate reading time based on description length."""
+    # description is truncated to 500 chars; estimate full article from ratio
+    # Average Korean reading speed: ~500 chars/min, English: ~200 words/min
+    char_count = len(description)
+    # Rough estimate: description is ~10-20% of full article
+    estimated_full = char_count * 7
+    minutes = max(1, estimated_full // 500)
+    if minutes <= 3:
+        return "~3분"
+    elif minutes <= 7:
+        return "~5분"
+    elif minutes <= 12:
+        return "~10분"
+    else:
+        return "10분+"
+
+
 def _build_article_blocks(article: Article) -> list[dict]:
     """Build Notion blocks for a single article."""
     emoji = _score_emoji(article.score)
     color = _score_color(article.score)
     tags_text = " · ".join(article.tags) if article.tags else ""
+    reading_time = _estimate_reading_time(article.description)
 
     # Callout block with article info
     rich_text = [
@@ -404,7 +441,7 @@ def _build_article_blocks(article: Article) -> list[dict]:
         },
         {
             "type": "text",
-            "text": {"content": f"  via {article.source}", "link": None},
+            "text": {"content": f"  {reading_time}  via {article.source}", "link": None},
             "annotations": {"color": "gray", "italic": True},
         },
     ]
@@ -456,9 +493,8 @@ def _build_notion_blocks(curated: list[Article], errors: list[str]) -> list[dict
 
     # Group by score tier
     tiers = [
-        ("\U0001f525 필독", 8, 10),
-        ("\u2b50 추천", 6, 7),
-        ("\U0001f4a1 참고", 4, 5),
+        ("\U0001f525 필독", 9, 10),
+        ("\u2b50 추천", 7, 8),
     ]
 
     for tier_label, lo, hi in tiers:
@@ -631,4 +667,9 @@ def load_config() -> dict:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        log.info("Interrupted by user")
+    except Exception as e:
+        log.error("Unexpected error: %s", e, exc_info=True)
