@@ -491,6 +491,22 @@ def _build_notion_blocks(curated: list[Article], errors: list[str]) -> list[dict
     })
     blocks.append({"object": "block", "type": "divider", "divider": {}})
 
+    # No articles message
+    if not curated:
+        blocks.append({
+            "object": "block",
+            "type": "callout",
+            "callout": {
+                "rich_text": [{
+                    "type": "text",
+                    "text": {"content": "오늘은 추천 기준을 충족하는 기사가 없습니다.\n퀄리티 높은 글만 엄선하고 있으니, 오늘은 편하게 쉬어가세요!"},
+                }],
+                "icon": {"type": "emoji", "emoji": "☕"},
+                "color": "gray_background",
+            },
+        })
+        blocks.append({"object": "block", "type": "divider", "divider": {}})
+
     # Group by score tier
     tiers = [
         ("\U0001f525 필독", 9, 10),
@@ -646,13 +662,7 @@ def main():
     # Mark ALL fetched articles as seen (avoid re-processing)
     mark_seen(conn, all_articles)
 
-    if not curated:
-        log.info("No articles passed curation. Done.")
-        cleanup_db(conn, config["db"].get("retention_days", 30))
-        conn.close()
-        return
-
-    # 3. Upload to Notion
+    # 3. Upload to Notion (even if no articles passed curation)
     upload_to_notion(curated, errors, config)
 
     # 4. Cleanup
