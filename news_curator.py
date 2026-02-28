@@ -362,25 +362,6 @@ def curate_with_claude(articles: list[Article], config: dict) -> list[Article]:
 # Notion uploader
 # ---------------------------------------------------------------------------
 
-def _score_emoji(score: int) -> str:
-    if score >= 8:
-        return "\U0001f525"  # 🔥
-    if score >= 6:
-        return "\u2b50"      # ⭐
-    if score >= 4:
-        return "\U0001f4a1"  # 💡
-    return "\u2796"          # ➖
-
-
-def _score_color(score: int) -> str:
-    if score >= 8:
-        return "red"
-    if score >= 6:
-        return "orange"
-    if score >= 4:
-        return "yellow"
-    return "gray"
-
 
 def _notion_request(endpoint: str, token: str, payload: dict, method: str = "POST") -> dict:
     """Make a request to the Notion API."""
@@ -422,8 +403,6 @@ def _estimate_reading_time(description: str) -> str:
 
 def _build_article_blocks(article: Article) -> list[dict]:
     """Build Notion blocks for a single article."""
-    emoji = _score_emoji(article.score)
-    color = _score_color(article.score)
     tags_text = " · ".join(article.tags) if article.tags else ""
     reading_time = _estimate_reading_time(article.description)
 
@@ -433,11 +412,6 @@ def _build_article_blocks(article: Article) -> list[dict]:
             "type": "text",
             "text": {"content": article.title, "link": {"url": article.link}},
             "annotations": {"bold": True},
-        },
-        {
-            "type": "text",
-            "text": {"content": f"  [{article.score}/10]", "link": None},
-            "annotations": {"bold": True, "color": color},
         },
         {
             "type": "text",
@@ -465,7 +439,7 @@ def _build_article_blocks(article: Article) -> list[dict]:
             "type": "callout",
             "callout": {
                 "rich_text": rich_text,
-                "icon": {"type": "emoji", "emoji": emoji},
+                "icon": {"type": "emoji", "emoji": "\U0001f4cc"},
                 "color": "gray_background",
             },
         },
@@ -507,31 +481,11 @@ def _build_notion_blocks(curated: list[Article], errors: list[str]) -> list[dict
         })
         blocks.append({"object": "block", "type": "divider", "divider": {}})
 
-    # Group by score tier
-    tiers = [
-        ("\U0001f525 필독", 9, 10),
-        ("\u2b50 추천", 7, 8),
-    ]
+    # List articles (already sorted by score descending)
+    for a in curated:
+        blocks.extend(_build_article_blocks(a))
 
-    for tier_label, lo, hi in tiers:
-        arts = [a for a in curated if lo <= a.score <= hi]
-        if not arts:
-            continue
-        blocks.append({
-            "object": "block",
-            "type": "heading_2",
-            "heading_2": {
-                "rich_text": [
-                    {"type": "text", "text": {"content": f"{tier_label} "}},
-                    {"type": "text", "text": {"content": f"({len(arts)}건)"},
-                     "annotations": {"color": "gray"}},
-                ],
-            },
-        })
-
-        for a in arts:
-            blocks.extend(_build_article_blocks(a))
-
+    if curated:
         blocks.append({"object": "block", "type": "divider", "divider": {}})
 
     # Errors section
