@@ -25,14 +25,14 @@
       "Interest 1",
       "Interest 2"
     ],
-    "max_articles": 20
+    "max_articles": 5
   },
   "notion": {
     "token": "ntn_YOUR_NOTION_TOKEN_HERE",
     "database_id": "YOUR_DATABASE_ID_HERE"
   },
   "scoring": {
-    "min_score": 4,
+    "min_score": 7,
     "max_articles_per_source": 8,
     "max_age_days": 3
   },
