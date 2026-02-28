@@ -22,7 +22,7 @@ Single-script application (`news_curator.py`) that runs as a daily batch job:
 
 The Claude CLI is invoked as a subprocess with `--output-format text --max-turns 4`. The `CLAUDECODE` env var is explicitly stripped to avoid recursion. The prompt and all curation output are in Korean.
 
-Notion output groups articles by score tier: 🔥필독 (8-10), ⭐추천 (6-7), 💡참고 (4-5). Blocks are batched in groups of 100 per Notion API limits.
+Notion output lists articles sorted by score (highest first) without exposing scores or tier labels to readers. Scores are used internally for filtering (`min_score`) and ordering only. When no articles pass curation, a "쉬어가기" rest-day message is shown. Blocks are batched in groups of 100 per Notion API limits.
 
 ## Key Files
 
