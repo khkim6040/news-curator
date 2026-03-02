@@ -343,14 +343,24 @@ def curate_with_claude(articles: list[Article], config: dict) -> list[Article]:
     # Map back to articles
     curated = []
     for sel in selections:
-        idx = sel.get("index")
+        if isinstance(sel, dict):
+            idx = sel.get("index")
+            score = sel.get("score", 0)
+            summary = sel.get("summary", "")
+            tags = sel.get("tags", [])
+            reason = sel.get("reason", "")
+        elif isinstance(sel, (int, float)):
+            idx = int(sel)
+            score, summary, tags, reason = 0, "", [], ""
+        else:
+            continue
         if idx is None or not (0 <= idx < len(articles)):
             continue
         a = articles[idx]
-        a.score = sel.get("score", 0)
-        a.summary = sel.get("summary", "")
-        a.tags = sel.get("tags", [])
-        a.reason = sel.get("reason", "")
+        a.score = score
+        a.summary = summary
+        a.tags = tags
+        a.reason = reason
         curated.append(a)
 
     curated.sort(key=lambda a: a.score, reverse=True)

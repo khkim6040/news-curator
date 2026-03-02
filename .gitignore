@@ -3,3 +3,4 @@ seen.db
 curator.log
 __pycache__/
 .omc/
+**/HANDOFF.md
