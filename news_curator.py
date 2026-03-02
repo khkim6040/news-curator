@@ -8,6 +8,7 @@ import re
 import sqlite3
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
@@ -579,13 +580,30 @@ def main():
     conn = init_db()
     errors: list[str] = []
 
-    # 1. Fetch & parse all feeds
+    # 1. Fetch all feeds in parallel
     all_articles: list[Article] = []
     max_per = config["scoring"].get("max_articles_per_source", 15)
 
+    feed_results: dict[str, str | None] = {}
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_feed = {
+            executor.submit(fetch_feed, feed): feed for feed in config["feeds"]
+        }
+        for future in as_completed(future_to_feed):
+            feed = future_to_feed[future]
+            name = feed["name"]
+            try:
+                feed_results[name] = future.result()
+            except Exception as e:
+                log.error("Unexpected error fetching %s: %s", name, e)
+                feed_results[name] = None
+
+    log.info("Fetched %d feeds in parallel", len(feed_results))
+
+    # Parse & dedup sequentially (SQLite is not thread-safe)
     for feed in config["feeds"]:
         name = feed["name"]
-        xml = fetch_feed(feed)
+        xml = feed_results.get(name)
         if xml is None:
             errors.append(f"{name}: fetch failed")
             continue
