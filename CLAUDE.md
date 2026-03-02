@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 python3 news_curator.py
 ```
 
-No dependencies beyond the Python 3.10+ standard library. Requires the `claude` CLI (`npm install -g @anthropic-ai/claude-code`) to be available on PATH for the LLM curation step.
+No dependencies beyond the Python 3.10+ standard library. No tests or linting tools are configured. Requires the `claude` CLI (`npm install -g @anthropic-ai/claude-code`) to be available on PATH for the LLM curation step.
 
 ## Architecture
 
@@ -20,9 +20,9 @@ Single-script application (`news_curator.py`) that runs as a daily batch job:
 4. **Curate** — Sends all new articles to Claude CLI (`claude -p`) in a single prompt; Claude returns a JSON array of scored/summarized selections
 5. **Publish** — Creates a Notion database page with the curated digest via the Notion API
 
-The Claude CLI is invoked as a subprocess with `--output-format text --max-turns 4`. The `CLAUDECODE` env var is explicitly stripped to avoid recursion. The prompt and all curation output are in Korean.
+The Claude CLI is invoked as a subprocess with `--output-format text --max-turns 4`. The `CLAUDECODE` env var is explicitly stripped from the subprocess environment to prevent Claude Code from invoking itself recursively. The prompt and all curation output are in Korean.
 
-Notion output lists articles sorted by score (highest first) without exposing scores or tier labels to readers. Scores are used internally for filtering (`min_score`) and ordering only. When no articles pass curation, a "쉬어가기" rest-day message is shown. Blocks are batched in groups of 100 per Notion API limits.
+Notion output lists articles sorted by score (highest first) without exposing scores or tier labels to readers. Scores are used internally for filtering (`min_score`) and ordering only. When no articles pass curation, a "쉬어가기" rest-day message is shown. Blocks are batched in groups of 100 per Notion API limits. Feed fetch errors are also reported as a red callout block in the Notion page.
 
 ## Key Files
 
@@ -42,7 +42,9 @@ Notion output lists articles sorted by score (highest first) without exposing sc
 
 ## Important Notes
 
+- The scoring rubric in `_build_prompt()` is **hardcoded** with fintech backend engineering criteria (not configurable via config). Only `persona`, `interests`, `max_articles`, and `min_score` are pulled from config.
 - Feed parsing handles both RSS 2.0 (`<item>`) and Atom (`<entry>`) formats with `xml.etree.ElementTree`
-- Claude's JSON response is parsed with fallback regex extraction if markdown code fences are present
+- Claude's JSON response is parsed with a fallback that strips markdown code fences, then uses bracket-depth tracking to extract the first balanced `[...]` array
 - ALL fetched articles (not just curated ones) are marked as seen in SQLite to prevent re-processing
 - Notion page properties use Korean field names: `이름` (title), `작성일` (date)
+- Notion API version is pinned to `2022-06-28` in `_notion_request()`
