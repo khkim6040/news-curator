@@ -95,6 +95,17 @@ def init_db() -> sqlite3.Connection:
             seen_at TEXT DEFAULT (datetime('now'))
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS run_history (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            run_at        TEXT,
+            total_fetched INTEGER,
+            total_new     INTEGER,
+            total_curated INTEGER,
+            error_count   INTEGER,
+            source_stats  TEXT
+        )
+    """)
     conn.commit()
     return conn
 
@@ -111,6 +122,19 @@ def mark_seen(conn: sqlite3.Connection, articles: list[Article]):
         [(a.link, a.title, a.source) for a in articles],
     )
     conn.commit()
+
+
+def record_run(conn: sqlite3.Connection, total_fetched: int, total_new: int,
+               total_curated: int, error_count: int, source_stats: dict):
+    conn.execute(
+        "INSERT INTO run_history (run_at, total_fetched, total_new, total_curated, error_count, source_stats)"
+        " VALUES (?, ?, ?, ?, ?, ?)",
+        (datetime.now().isoformat(), total_fetched, total_new, total_curated,
+         error_count, json.dumps(source_stats, ensure_ascii=False)),
+    )
+    conn.commit()
+    log.info("Run recorded: fetched=%d, new=%d, curated=%d, errors=%d",
+             total_fetched, total_new, total_curated, error_count)
 
 
 def cleanup_db(conn: sqlite3.Connection, days: int = 30):
@@ -579,6 +603,7 @@ def main():
     config = load_config()
     conn = init_db()
     errors: list[str] = []
+    source_stats: dict[str, dict] = {}
 
     # 1. Fetch all feeds in parallel
     all_articles: list[Article] = []
@@ -601,11 +626,13 @@ def main():
     log.info("Fetched %d feeds in parallel", len(feed_results))
 
     # Parse & dedup sequentially (SQLite is not thread-safe)
+    total_fetched = 0
     for feed in config["feeds"]:
         name = feed["name"]
         xml = feed_results.get(name)
         if xml is None:
             errors.append(f"{name}: fetch failed")
+            source_stats[name] = {"fetched": 0, "new": 0, "curated": 0, "error": True}
             continue
 
         parsed = parse_feed(xml, name)
@@ -614,6 +641,8 @@ def main():
         new = [a for a in parsed if not is_seen(conn, a.link)]
         log.info("New from %s: %d / %d", name, len(new), len(parsed))
         all_articles.extend(new[:max_per])
+        total_fetched += len(parsed)
+        source_stats[name] = {"fetched": len(parsed), "new": len(new), "curated": 0}
 
     # Filter out articles older than max_age_days
     max_age_days = config["scoring"].get("max_age_days", 3)
@@ -630,8 +659,11 @@ def main():
     if before_filter != len(all_articles):
         log.info("Filtered out %d old articles (> %d days)", before_filter - len(all_articles), max_age_days)
 
+    total_new = len(all_articles)
+
     if not all_articles:
         log.info("No new articles. Done.")
+        record_run(conn, total_fetched, 0, 0, len(errors), source_stats)
         cleanup_db(conn, config["db"].get("retention_days", 30))
         conn.close()
         return
@@ -641,13 +673,19 @@ def main():
     # 2. LLM curation
     curated = curate_with_claude(all_articles, config)
 
+    # Update per-source curated counts
+    for a in curated:
+        if a.source in source_stats:
+            source_stats[a.source]["curated"] += 1
+
     # Mark ALL fetched articles as seen (avoid re-processing)
     mark_seen(conn, all_articles)
 
     # 3. Upload to Notion (even if no articles passed curation)
     upload_to_notion(curated, errors, config)
 
-    # 4. Cleanup
+    # 4. Record run history & cleanup
+    record_run(conn, total_fetched, total_new, len(curated), len(errors), source_stats)
     cleanup_db(conn, config["db"].get("retention_days", 30))
     conn.close()
     log.info("=== News Curator finished ===")
