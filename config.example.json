@@ -19,7 +19,7 @@
     }
   ],
   "curator": {
-    "model": "claude-haiku-4-5-20251001",
+    "model": "claude-opus-4-6",
     "persona": "Your role and interests here",
     "interests": [
       "Interest 1",
