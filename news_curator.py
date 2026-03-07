@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from html import unescape
 from pathlib import Path
+from urllib.parse import urlparse
 from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
 from xml.etree import ElementTree as ET
@@ -636,6 +637,13 @@ def main():
             continue
 
         parsed = parse_feed(xml, name)
+        blocked_domains = config.get("blocked_domains", [])
+        if blocked_domains:
+            before = len(parsed)
+            parsed = [a for a in parsed if urlparse(a.link).hostname not in blocked_domains]
+            blocked_count = before - len(parsed)
+            if blocked_count:
+                log.info("Blocked %d articles from %s (domain blocklist)", blocked_count, name)
         log.info("Parsed %d articles from %s", len(parsed), name)
 
         new = [a for a in parsed if not is_seen(conn, a.link)]

@@ -36,6 +36,9 @@
     "max_articles_per_source": 8,
     "max_age_days": 3
   },
+  "blocked_domains": [
+    "blog.bytebytego.com"
+  ],
   "db": {
     "retention_days": 30
   }
