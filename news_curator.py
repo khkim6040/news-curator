@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Daily RSS News Curator — LLM-powered curation using Claude CLI."""
 
+import argparse
 import json
 import logging
 import os
@@ -8,6 +9,7 @@ import re
 import sqlite3
 import subprocess
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -20,7 +22,6 @@ from urllib.error import URLError, HTTPError
 from xml.etree import ElementTree as ET
 
 BASE_DIR = Path(__file__).parent
-CONFIG_PATH = BASE_DIR / "config.json"
 DB_PATH = BASE_DIR / "seen.db"
 LOG_PATH = BASE_DIR / "curator.log"
 
@@ -33,6 +34,23 @@ logging.basicConfig(
     ],
 )
 log = logging.getLogger(__name__)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Daily RSS News Curator")
+    parser.add_argument(
+        "--dry-run", action="store_true",
+        help="큐레이션만 수행하고 Notion 업로드/DB 기록을 건너뜀",
+    )
+    parser.add_argument(
+        "--config", type=Path, default=BASE_DIR / "config.json",
+        help="config.json 경로 (기본: %(default)s)",
+    )
+    parser.add_argument(
+        "--verbose", action="store_true",
+        help="DEBUG 레벨 로그 출력",
+    )
+    return parser.parse_args()
 
 
 # ---------------------------------------------------------------------------
@@ -599,12 +617,76 @@ def upload_to_notion(curated: list[Article], errors: list[str], config: dict):
 # Main
 # ---------------------------------------------------------------------------
 
+def _print_dry_run(curated: list[Article], errors: list[str]):
+    """Print curation results to stdout for dry-run mode."""
+    print(f"\n{'='*60}")
+    print(f"  DRY-RUN 결과: {len(curated)}건 선별")
+    print(f"{'='*60}\n")
+    for i, a in enumerate(curated, 1):
+        tags = " · ".join(a.tags) if a.tags else ""
+        print(f"[{i}] ({a.score}점) {a.title}")
+        print(f"    출처: {a.source}  |  {a.link}")
+        if tags:
+            print(f"    태그: {tags}")
+        print(f"    요약: {a.summary}")
+        if a.reason:
+            print(f"    사유: {a.reason}")
+        print()
+    if errors:
+        print(f"--- 피드 오류 ({len(errors)}건) ---")
+        for e in errors:
+            print(f"  • {e}")
+        print()
+
+
+def _print_run_summary(*, elapsed: float, total_feeds: int, total_fetched: int,
+                       total_new: int, total_curated: int, errors: list[str],
+                       source_stats: dict[str, dict], dry_run: bool):
+    """Print structured run summary for launchd log analysis."""
+    status = "DRY_RUN" if dry_run else ("OK" if not errors else "PARTIAL_FAIL")
+    failed_feeds = [n for n, s in source_stats.items() if s.get("error")]
+    top_sources = sorted(
+        [(n, s["curated"]) for n, s in source_stats.items() if s.get("curated", 0) > 0],
+        key=lambda x: x[1], reverse=True,
+    )
+
+    lines = [
+        "",
+        "=" * 60,
+        "  RUN SUMMARY",
+        "=" * 60,
+        f"  status:          {status}",
+        f"  elapsed:         {elapsed:.1f}s",
+        f"  feeds:           {total_feeds} total, {total_feeds - len(failed_feeds)} ok, {len(failed_feeds)} failed",
+        f"  articles:        {total_fetched} fetched -> {total_new} new -> {total_curated} curated",
+    ]
+    if top_sources:
+        top_str = ", ".join(f"{n}({c})" for n, c in top_sources[:5])
+        lines.append(f"  top sources:     {top_str}")
+    if failed_feeds:
+        lines.append(f"  failed feeds:    {', '.join(failed_feeds)}")
+    if errors:
+        lines.append(f"  errors ({len(errors)}):")
+        for e in errors:
+            lines.append(f"    - {e}")
+    lines.append("=" * 60)
+    lines.append("")
+
+    summary = "\n".join(lines)
+    log.info(summary)
+
+
 def main():
-    log.info("=== News Curator started ===")
-    config = load_config()
+    args = parse_args()
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+    t_start = time.monotonic()
+    log.info("=== News Curator started%s ===", " (dry-run)" if args.dry_run else "")
+    config = load_config(args.config)
     conn = init_db()
     errors: list[str] = []
     source_stats: dict[str, dict] = {}
+    total_feeds = len(config["feeds"])
 
     # 1. Fetch all feeds in parallel
     all_articles: list[Article] = []
@@ -671,8 +753,14 @@ def main():
 
     if not all_articles:
         log.info("No new articles. Done.")
-        record_run(conn, total_fetched, 0, 0, len(errors), source_stats)
-        cleanup_db(conn, config["db"].get("retention_days", 30))
+        if not args.dry_run:
+            record_run(conn, total_fetched, 0, 0, len(errors), source_stats)
+            cleanup_db(conn, config["db"].get("retention_days", 30))
+        _print_run_summary(
+            elapsed=time.monotonic() - t_start, total_feeds=total_feeds,
+            total_fetched=total_fetched, total_new=0, total_curated=0,
+            errors=errors, source_stats=source_stats, dry_run=args.dry_run,
+        )
         conn.close()
         return
 
@@ -686,6 +774,16 @@ def main():
         if a.source in source_stats:
             source_stats[a.source]["curated"] += 1
 
+    if args.dry_run:
+        _print_dry_run(curated, errors)
+        _print_run_summary(
+            elapsed=time.monotonic() - t_start, total_feeds=total_feeds,
+            total_fetched=total_fetched, total_new=total_new, total_curated=len(curated),
+            errors=errors, source_stats=source_stats, dry_run=True,
+        )
+        conn.close()
+        return
+
     # Mark ALL fetched articles as seen (avoid re-processing)
     mark_seen(conn, all_articles)
 
@@ -695,12 +793,17 @@ def main():
     # 4. Record run history & cleanup
     record_run(conn, total_fetched, total_new, len(curated), len(errors), source_stats)
     cleanup_db(conn, config["db"].get("retention_days", 30))
+    _print_run_summary(
+        elapsed=time.monotonic() - t_start, total_feeds=total_feeds,
+        total_fetched=total_fetched, total_new=total_new, total_curated=len(curated),
+        errors=errors, source_stats=source_stats, dry_run=False,
+    )
     conn.close()
     log.info("=== News Curator finished ===")
 
 
-def load_config() -> dict:
-    with open(CONFIG_PATH, encoding="utf-8") as f:
+def load_config(path: Path) -> dict:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
