@@ -588,7 +588,7 @@ def upload_to_notion(curated: list[Article], errors: list[str], config: dict):
         else:
             title = f"{top_title} 외 {len(curated) - 1}건"
     else:
-        title = "☕"
+        title = "☕ 쉬어가기"
 
     blocks = _build_notion_blocks(curated, errors)
 
