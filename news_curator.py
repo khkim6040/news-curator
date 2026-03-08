@@ -595,7 +595,6 @@ def upload_to_notion(curated: list[Article], errors: list[str], config: dict):
     # Create page with first batch of blocks (max 100 per request)
     page_payload = {
         "parent": {"database_id": database_id},
-        "icon": {"type": "emoji", "emoji": "☕" if not curated else "\U0001f4f0"},
         "properties": {
             "이름": {"title": [{"text": {"content": title}}]},
             "작성일": {"date": {"start": today}},
