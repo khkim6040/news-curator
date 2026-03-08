@@ -527,7 +527,7 @@ def _build_notion_blocks(curated: list[Article], errors: list[str]) -> list[dict
             "callout": {
                 "rich_text": [{
                     "type": "text",
-                    "text": {"content": "오늘은 추천 기준을 충족하는 기사가 없습니다.\n퀄리티 높은 글만 엄선하고 있으니, 오늘은 편하게 쉬어가세요!"},
+                    "text": {"content": "오늘은 추천 기준을 충족하는 기사가 없습니다.\n좋은 하루 보내세요 ☀️"},
                 }],
                 "icon": {"type": "emoji", "emoji": "☕"},
                 "color": "gray_background",
@@ -579,14 +579,23 @@ def upload_to_notion(curated: list[Article], errors: list[str], config: dict):
     token = ncfg["token"]
     database_id = ncfg["database_id"]
     today = datetime.now().strftime("%Y-%m-%d")
-    title = f"{today} Daily Tech Digest"
+    if curated:
+        top_title = curated[0].title
+        if len(top_title) > 30:
+            top_title = top_title[:28] + "…"
+        if len(curated) == 1:
+            title = top_title
+        else:
+            title = f"{top_title} 외 {len(curated) - 1}건"
+    else:
+        title = "☕"
 
     blocks = _build_notion_blocks(curated, errors)
 
     # Create page with first batch of blocks (max 100 per request)
     page_payload = {
         "parent": {"database_id": database_id},
-        "icon": {"type": "emoji", "emoji": "\U0001f4f0"},
+        "icon": {"type": "emoji", "emoji": "☕" if not curated else "\U0001f4f0"},
         "properties": {
             "이름": {"title": [{"text": {"content": title}}]},
             "작성일": {"date": {"start": today}},
