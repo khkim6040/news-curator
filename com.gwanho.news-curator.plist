@@ -10,12 +10,12 @@
     <array>
         <string>/usr/bin/caffeinate</string>
         <string>-i</string>
-        <string>/opt/homebrew/bin/python3</string>
-        <string>/Users/gwanhokim/personal-projects/news-curator/news_curator.py</string>
+        <string>__PYTHON_PATH__</string>
+        <string>__REPO_DIR__/news_curator.py</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/gwanhokim/personal-projects/news-curator</string>
+    <string>__REPO_DIR__</string>
 
     <key>StartCalendarInterval</key>
     <dict>
@@ -26,15 +26,15 @@
     </dict>
 
     <key>StandardOutPath</key>
-    <string>/Users/gwanhokim/personal-projects/news-curator/launchd_stdout.log</string>
+    <string>__REPO_DIR__/launchd_stdout.log</string>
 
     <key>StandardErrorPath</key>
-    <string>/Users/gwanhokim/personal-projects/news-curator/launchd_stderr.log</string>
+    <string>__REPO_DIR__/launchd_stderr.log</string>
 
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/Users/gwanhokim/.local/bin:/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+        <string>__HOME_DIR__/.local/bin:/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
     </dict>
 </dict>
 </plist>
