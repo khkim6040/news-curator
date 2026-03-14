@@ -542,20 +542,9 @@ def _build_notion_blocks(curated: list[Article], errors: list[str]) -> list[dict
     if curated:
         blocks.append({"object": "block", "type": "divider", "divider": {}})
 
-    # Errors section
+    # Errors are logged internally only (not shown in Notion page)
     if errors:
-        blocks.append({
-            "object": "block",
-            "type": "callout",
-            "callout": {
-                "rich_text": [{
-                    "type": "text",
-                    "text": {"content": "Fetch Errors:\n" + "\n".join(f"• {e}" for e in errors)},
-                }],
-                "icon": {"type": "emoji", "emoji": "\u26a0\ufe0f"},
-                "color": "red_background",
-            },
-        })
+        log.warning("Fetch errors: %s", ", ".join(errors))
 
     # Footer
     blocks.append({
