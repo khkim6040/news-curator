@@ -17,6 +17,7 @@ from news_curator import (
     cleanup_db,
     record_run,
     _estimate_reading_time,
+    _compute_title,
     _build_prompt,
     _build_article_blocks,
     _build_notion_blocks,
@@ -351,20 +352,6 @@ class TestEstimateReadingTime(unittest.TestCase):
 # 6. Notion page title logic (upload_to_notion 내부 로직)
 # ---------------------------------------------------------------------------
 
-def _compute_title(curated: list[Article]) -> str:
-    """Extract the title logic from upload_to_notion for testing."""
-    if curated:
-        top_title = curated[0].title
-        if len(top_title) > 30:
-            top_title = top_title[:28] + "…"
-        if len(curated) == 1:
-            title = top_title
-        else:
-            title = f"{top_title} 외 {len(curated) - 1}건"
-    else:
-        title = "☕"
-    return title
-
 
 class TestNotionPageTitle(unittest.TestCase):
     def _article(self, title="Test"):
@@ -406,7 +393,7 @@ class TestBuildArticleBlocks(unittest.TestCase):
         defaults.update(kwargs)
         return Article(**{k: defaults[k] for k in
                          ["title", "link", "description", "pub_date", "source",
-                          "categories", "score", "summary", "tags", "reason"]
+                          "score", "summary", "tags", "reason"]
                          if k in defaults},
                        categories=defaults.get("categories", []))
 

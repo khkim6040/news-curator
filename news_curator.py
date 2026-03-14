@@ -563,22 +563,25 @@ def _build_notion_blocks(curated: list[Article], errors: list[str]) -> list[dict
     return blocks
 
 
+def _compute_title(curated: list[Article]) -> str:
+    """Compute the Notion page title from curated articles."""
+    if curated:
+        top_title = curated[0].title
+        if len(top_title) > 30:
+            top_title = top_title[:28] + "…"
+        if len(curated) == 1:
+            return top_title
+        return f"{top_title} 외 {len(curated) - 1}건"
+    return "☕"
+
+
 def upload_to_notion(curated: list[Article], errors: list[str], config: dict):
     """Create a Notion database page with the curated digest."""
     ncfg = config["notion"]
     token = ncfg["token"]
     database_id = ncfg["database_id"]
     today = datetime.now().strftime("%Y-%m-%d")
-    if curated:
-        top_title = curated[0].title
-        if len(top_title) > 30:
-            top_title = top_title[:28] + "…"
-        if len(curated) == 1:
-            title = top_title
-        else:
-            title = f"{top_title} 외 {len(curated) - 1}건"
-    else:
-        title = "☕"
+    title = _compute_title(curated)
 
     blocks = _build_notion_blocks(curated, errors)
 
