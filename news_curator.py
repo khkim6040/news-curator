@@ -356,6 +356,8 @@ def curate_with_claude(articles: list[Article], config: dict) -> list[Article]:
         log.error("Empty response from Claude CLI")
         return []
 
+    log.info("Claude raw response:\n%s", text)
+
     # Strip markdown code fences if present
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?\s*", "", text)
@@ -766,6 +768,8 @@ def main():
         return
 
     log.info("Total new articles for curation: %d", len(all_articles))
+    for i, a in enumerate(all_articles):
+        log.info("  [%d] %s — %s (date: %s)", i, a.source, a.title, a.pub_date or "N/A")
 
     # 2. LLM curation
     curated = curate_with_claude(all_articles, config)
