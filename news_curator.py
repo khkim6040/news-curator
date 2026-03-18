@@ -356,7 +356,7 @@ def curate_with_claude(articles: list[Article], config: dict) -> list[Article]:
         log.error("Empty response from Claude CLI")
         return []
 
-    log.info("Claude raw response:\n%s", text)
+    log.debug("Claude raw response:\n%s", text)
 
     # Strip markdown code fences if present
     if text.startswith("```"):
