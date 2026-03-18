@@ -100,6 +100,10 @@ def _extract_text_from_html(html: str) -> str:
 
 def fetch_article_body(article: "Article", timeout: int = 15) -> str:
     """Fetch the full body text of an article URL."""
+    parsed = urlparse(article.link)
+    if parsed.scheme not in ("http", "https"):
+        log.debug("Skipping non-HTTP URL: %s", article.link)
+        return ""
     try:
         req = Request(article.link)
         req.add_header("User-Agent",
