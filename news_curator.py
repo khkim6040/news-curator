@@ -65,6 +65,7 @@ class Article:
     pub_date: str
     source: str
     categories: list[str] = field(default_factory=list)
+    body: str = ""
     score: int = 0
     summary: str = ""
     tags: list[str] = field(default_factory=list)
@@ -75,6 +76,47 @@ def strip_html(text: str) -> str:
     text = re.sub(r"<[^>]+>", "", text)
     text = unescape(text)
     return re.sub(r"\s+", " ", text).strip()
+
+
+def _extract_text_from_html(html: str) -> str:
+    """Extract readable text from HTML, stripping nav/header/footer noise."""
+    # Remove script, style, nav, header, footer tags and their content
+    for tag in ("script", "style", "nav", "header", "footer", "aside"):
+        html = re.sub(rf"<{tag}[\s>].*?</{tag}>", "", html, flags=re.DOTALL | re.IGNORECASE)
+    # Try to find <article> or common content containers first
+    for pattern in (
+        r"<article[^>]*>(.*?)</article>",
+        r'<div[^>]+class="[^"]*(?:post-content|article-body|entry-content|blog-content|prose)[^"]*"[^>]*>(.*?)</div>',
+        r"<main[^>]*>(.*?)</main>",
+    ):
+        m = re.search(pattern, html, re.DOTALL | re.IGNORECASE)
+        if m:
+            html = m.group(1)
+            break
+    text = strip_html(html)
+    # Remove null bytes that break subprocess calls
+    return text.replace("\x00", "")
+
+
+def fetch_article_body(article: "Article", timeout: int = 15) -> str:
+    """Fetch the full body text of an article URL."""
+    try:
+        req = Request(article.link)
+        req.add_header("User-Agent",
+                       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0")
+        with urlopen(req, timeout=timeout) as resp:
+            content_type = resp.headers.get("Content-Type", "")
+            if "text/html" not in content_type and "application/xhtml" not in content_type:
+                return ""
+            raw = resp.read().decode("utf-8", errors="replace")
+        text = _extract_text_from_html(raw)
+        # Cap at 3000 chars to keep total prompt size manageable
+        if len(text) > 3000:
+            text = text[:3000] + " …(truncated)"
+        return text
+    except Exception as e:
+        log.debug("Failed to fetch body for %s: %s", article.link, e)
+        return ""
 
 
 def parse_pub_date(date_str: str) -> datetime | None:
@@ -255,10 +297,15 @@ def _build_prompt(articles: list[Article], config: dict) -> str:
         if a.pub_date:
             dt = parse_pub_date(a.pub_date)
             date_str = f"\n발행일: {dt.strftime('%Y-%m-%d')}" if dt else f"\n발행일: {a.pub_date}"
+        body_section = ""
+        if a.body:
+            body_section = f"\n본문:\n{a.body}"
+        elif a.description:
+            body_section = f"\n요약: {a.description[:300]}"
         lines.append(
             f"[{i}] [{a.source}]{cats}\n"
-            f"제목: {a.title}{date_str}\n"
-            f"요약: {a.description[:300]}"
+            f"제목: {a.title}{date_str}"
+            f"{body_section}"
         )
     article_text = "\n\n".join(lines)
 
@@ -277,6 +324,7 @@ def _build_prompt(articles: list[Article], config: dict) -> str:
 - 금융 도메인(원장 설계, 트랜잭션, 정합성)과 직접 관련된 심층 기술 아티클.
 - 대규모 트래픽 분산 처리, 장애 대응(Failover), 데이터베이스 락킹/격리 수준에 대한 실무적 경험 공유.
 - 핀테크 보안 규제(망분리, 개인정보 암호화)와 관련된 기술적 해법.
+- 반드시 본문에 구체적인 구현 디테일(코드, 설정, 아키텍처 다이어그램 설명 등)이 포함되어야 한다.
 
 7-8점 [추천 - Best Practice]:
 - Java/Kotlin/Spring Boot, DB(MySQL, Redis), Kafka 등 백엔드 코어 기술의 성능 최적화 사례.
@@ -292,6 +340,13 @@ def _build_prompt(articles: list[Article], config: dict) -> str:
 - 기술적 내용이 없는 단순 제품 홍보, 투자 유치, 경영진 인터뷰.
 - 주가 변동, 암호화폐 시세 등 '투자 정보'.
 - 기술적 깊이 없이 용어만 나열한 기사.
+
+## 감점 기준 (반드시 적용)
+
+- 컨퍼런스 발표 요약/공지 기사: 본문에 구현 디테일 없이 발표 내용만 요약한 경우 최대 7점.
+- 2차 정리 콘텐츠: 원본 블로그/논문을 재정리한 기사는 1점 감점. 원본을 직접 읽는 것이 더 가치 있다.
+- 본문이 극히 짧은 기사: 본문이 릴리스 공지, 한 줄 발표 수준이면 최대 5점.
+- 제목이 매력적이어도 본문의 기술적 깊이가 얕으면 제목에 현혹되지 말 것.
 
 ## 규칙
 
@@ -770,6 +825,24 @@ def main():
     log.info("Total new articles for curation: %d", len(all_articles))
     for i, a in enumerate(all_articles):
         log.info("  [%d] %s — %s (date: %s)", i, a.source, a.title, a.pub_date or "N/A")
+
+    # 1.5. Fetch article bodies in parallel
+    log.info("Fetching article bodies for %d articles …", len(all_articles))
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_article = {
+            executor.submit(fetch_article_body, a): a for a in all_articles
+        }
+        fetched_count = 0
+        for future in as_completed(future_to_article):
+            article = future_to_article[future]
+            try:
+                body = future.result()
+                if body:
+                    article.body = body
+                    fetched_count += 1
+            except Exception as e:
+                log.debug("Body fetch error for %s: %s", article.link, e)
+    log.info("Fetched %d / %d article bodies", fetched_count, len(all_articles))
 
     # 2. LLM curation
     curated = curate_with_claude(all_articles, config)
