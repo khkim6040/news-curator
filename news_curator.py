@@ -298,18 +298,18 @@ def _build_prompt(articles: list[Article], config: dict) -> str:
 1. 각 기사를 위 루브릭에 따라 1-10점으로 평가
 2. {min_score}점 이상인 기사만 선택
 3. 최대 {max_articles}개까지 선택
-4. 요약: 기사의 핵심 내용을 자연스러운 서술형 한국어 2-3문장으로 정리. 레이블이나 화살표 없이 읽기 좋게 작성. 미사여구 금지.
+4. 요약: 기사의 핵심 내용을 자연스러운 서술형 한국어 2-3문장으로 정리. 반드시 '~다' 체(예: "다룬다", "해결했다", "제시한다")로 통일. 레이블이나 화살표 없이 읽기 좋게 작성. 미사여구 금지.
 5. 한국어 태그 1-3개 부여
-6. reason: "왜 내가 이걸 읽어야 하는가"를 구체적으로 작성. 현재 업무에 어떻게 적용 가능한지 한 줄로 서술.
+6. reason: "왜 내가 이걸 읽어야 하는가"를 구체적으로 작성. 현재 업무에 어떻게 적용 가능한지 '~다' 체로 한 줄 서술.
 
 반드시 아래 JSON 배열 형식으로만 응답하세요 (다른 텍스트 없이):
 [
   {{
     "index": 0,
     "score": 8,
-    "summary": "Kafka 클러스터를 3→5노드로 확장하면서 파티션 재배치 시 발생한 컨슈머 랙 급증 문제를 다룬다. 롤링 리밸런싱과 스로틀링 설정으로 무중단 확장에 성공했다.",
+    "summary": "Kafka 클러스터를 3→5노드로 확장하면서 파티션 재배치 시 발생한 컨슈머 랙 급증 문제를 다룬다. 롤링 리밸런싱과 스로틀링 설정을 적용해 무중단 확장에 성공한 과정을 정리한다.",
     "tags": ["태그1", "태그2"],
-    "reason": "현재 결제 모듈 리팩토링에 참고할 수 있는 DB Deadlock 해결 패턴 포함"
+    "reason": "현재 결제 모듈 리팩토링에 참고할 수 있는 DB Deadlock 해결 패턴을 포함한다"
   }}
 ]
 
@@ -472,21 +472,19 @@ def _build_article_blocks(article: Article) -> list[dict]:
         },
         {
             "type": "text",
-            "text": {"content": f"  {reading_time}  via {article.source}", "link": None},
+            "text": {"content": f"\n{reading_time}  via {article.source}", "link": None},
             "annotations": {"color": "gray", "italic": True},
         },
+        {"type": "text", "text": {"content": f"\n{article.summary}", "link": None}},
     ]
     if tags_text:
         rich_text.append(
             {"type": "text", "text": {"content": f"\n{tags_text}", "link": None},
              "annotations": {"color": "gray"}}
         )
-    rich_text.append(
-        {"type": "text", "text": {"content": f"\n{article.summary}", "link": None}}
-    )
     if article.reason:
         rich_text.append(
-            {"type": "text", "text": {"content": f"\n💬 {article.reason}", "link": None},
+            {"type": "text", "text": {"content": f"\n💬 읽어야 할 이유: {article.reason}", "link": None},
              "annotations": {"italic": True, "color": "gray"}}
         )
 
@@ -515,7 +513,7 @@ def _build_notion_blocks(curated: list[Article], errors: list[str]) -> list[dict
         "paragraph": {
             "rich_text": [{
                 "type": "text",
-                "text": {"content": f"총 {len(curated)}건의 관련 기사가 선별되었습니다 · {today}"},
+                "text": {"content": f"오늘의 추천 {len(curated)}건 · {today}"},
                 "annotations": {"color": "gray"},
             }],
         },
