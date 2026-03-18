@@ -6,9 +6,14 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
+from unittest.mock import MagicMock
+from io import BytesIO
+
 from news_curator import (
     Article,
     strip_html,
+    _extract_text_from_html,
+    fetch_article_body,
     parse_pub_date,
     parse_feed,
     init_db,
@@ -484,6 +489,153 @@ class TestBuildNotionBlocks(unittest.TestCase):
         blocks = _build_notion_blocks(articles, [])
         header = blocks[0]["paragraph"]["rich_text"][0]["text"]["content"]
         self.assertIn("2건", header)
+
+
+# ---------------------------------------------------------------------------
+# 9. _extract_text_from_html
+# ---------------------------------------------------------------------------
+
+class TestExtractTextFromHtml(unittest.TestCase):
+    def test_removes_script_and_style(self):
+        html = "<html><script>alert(1)</script><style>.x{}</style><p>Hello</p></html>"
+        self.assertEqual(_extract_text_from_html(html), "Hello")
+
+    def test_removes_nav_header_footer_aside(self):
+        html = "<nav>menu</nav><header>hdr</header><main>content</main><footer>ft</footer><aside>ad</aside>"
+        self.assertEqual(_extract_text_from_html(html), "content")
+
+    def test_extracts_article_tag(self):
+        html = "<div>noise</div><article><p>Important text</p></article><div>more noise</div>"
+        self.assertEqual(_extract_text_from_html(html), "Important text")
+
+    def test_extracts_content_div(self):
+        html = '<div>noise</div><div class="post-content"><p>Body here</p></div>'
+        self.assertEqual(_extract_text_from_html(html), "Body here")
+
+    def test_extracts_main_tag(self):
+        html = "<div>noise</div><main><p>Main content</p></main>"
+        self.assertEqual(_extract_text_from_html(html), "Main content")
+
+    def test_removes_null_bytes(self):
+        html = "<p>text\x00with\x00nulls</p>"
+        result = _extract_text_from_html(html)
+        self.assertNotIn("\x00", result)
+        self.assertEqual(result, "textwithnulls")
+
+    def test_plain_text_passthrough(self):
+        self.assertEqual(_extract_text_from_html("just plain text"), "just plain text")
+
+    def test_empty_string(self):
+        self.assertEqual(_extract_text_from_html(""), "")
+
+
+# ---------------------------------------------------------------------------
+# 10. fetch_article_body
+# ---------------------------------------------------------------------------
+
+class TestFetchArticleBody(unittest.TestCase):
+    def _article(self, link="https://example.com/article"):
+        return Article(title="Test", link=link, description="", pub_date="", source="S")
+
+    def test_rejects_file_scheme(self):
+        """SSRF protection: file:// URLs should be rejected."""
+        a = self._article("file:///etc/passwd")
+        self.assertEqual(fetch_article_body(a), "")
+
+    def test_rejects_ftp_scheme(self):
+        a = self._article("ftp://example.com/file")
+        self.assertEqual(fetch_article_body(a), "")
+
+    def test_rejects_empty_scheme(self):
+        a = self._article("//example.com/path")
+        self.assertEqual(fetch_article_body(a), "")
+
+    @patch("news_curator.urlopen")
+    def test_skips_non_html_content(self, mock_urlopen):
+        resp = MagicMock()
+        resp.headers = {"Content-Type": "application/pdf"}
+        resp.read.return_value = b"PDF data"
+        resp.__enter__ = lambda s: s
+        resp.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = resp
+
+        result = fetch_article_body(self._article())
+        self.assertEqual(result, "")
+
+    @patch("news_curator.urlopen")
+    def test_fetches_and_extracts_html(self, mock_urlopen):
+        html = b"<html><article><p>Article body text</p></article></html>"
+        resp = MagicMock()
+        resp.headers = {"Content-Type": "text/html; charset=utf-8"}
+        resp.read.return_value = html
+        resp.__enter__ = lambda s: s
+        resp.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = resp
+
+        result = fetch_article_body(self._article())
+        self.assertEqual(result, "Article body text")
+
+    @patch("news_curator.urlopen")
+    def test_returns_full_body(self, mock_urlopen):
+        long_text = "A" * 5000
+        html = f"<html><article><p>{long_text}</p></article></html>".encode()
+        resp = MagicMock()
+        resp.headers = {"Content-Type": "text/html"}
+        resp.read.return_value = html
+        resp.__enter__ = lambda s: s
+        resp.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = resp
+
+        result = fetch_article_body(self._article())
+        self.assertEqual(len(result), 5000)
+
+    @patch("news_curator.urlopen", side_effect=Exception("Connection refused"))
+    def test_returns_empty_on_error(self, mock_urlopen):
+        result = fetch_article_body(self._article())
+        self.assertEqual(result, "")
+
+
+# ---------------------------------------------------------------------------
+# 11. _build_prompt body vs description preference
+# ---------------------------------------------------------------------------
+
+class TestBuildPromptBodyPreference(unittest.TestCase):
+    def _config(self):
+        return {
+            "curator": {
+                "persona": "테스트",
+                "interests": ["backend"],
+                "max_articles": 10,
+            },
+            "scoring": {"min_score": 7},
+        }
+
+    def _article_section(self, prompt: str) -> str:
+        """Extract the article listing section after the '---' separator."""
+        return prompt.split("---")[-1]
+
+    def test_uses_body_when_available(self):
+        a = Article(title="Test", link="https://x.com", description="DESC_UNIQUE_XYZ",
+                    pub_date="", source="S", body="BODY_UNIQUE_ABC")
+        prompt = _build_prompt([a], self._config())
+        section = self._article_section(prompt)
+        self.assertIn("BODY_UNIQUE_ABC", section)
+        self.assertNotIn("DESC_UNIQUE_XYZ", section)
+
+    def test_falls_back_to_description(self):
+        a = Article(title="Test", link="https://x.com", description="DESC_FALLBACK_123",
+                    pub_date="", source="S", body="")
+        prompt = _build_prompt([a], self._config())
+        section = self._article_section(prompt)
+        self.assertIn("DESC_FALLBACK_123", section)
+
+    def test_no_body_no_description(self):
+        a = Article(title="Test", link="https://x.com", description="",
+                    pub_date="", source="S", body="")
+        prompt = _build_prompt([a], self._config())
+        section = self._article_section(prompt)
+        self.assertNotIn("본문:", section)
+        self.assertNotIn("요약:", section)
 
 
 if __name__ == "__main__":
