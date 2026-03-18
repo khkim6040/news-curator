@@ -7,7 +7,6 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from unittest.mock import MagicMock
-from io import BytesIO
 
 from news_curator import (
     Article,
