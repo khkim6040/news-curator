@@ -113,11 +113,7 @@ def fetch_article_body(article: "Article", timeout: int = 15) -> str:
             if "text/html" not in content_type and "application/xhtml" not in content_type:
                 return ""
             raw = resp.read().decode("utf-8", errors="replace")
-        text = _extract_text_from_html(raw)
-        # Cap at 3000 chars to keep total prompt size manageable
-        if len(text) > 3000:
-            text = text[:3000] + " …(truncated)"
-        return text
+        return _extract_text_from_html(raw)
     except Exception as e:
         log.debug("Failed to fetch body for %s: %s", article.link, e)
         return ""
@@ -390,12 +386,12 @@ def curate_with_claude(articles: list[Article], config: dict) -> list[Article]:
     log.info("Calling Claude CLI (%s) with %d articles …", model or "default", len(articles))
 
     try:
-        cmd = ["claude", "-p", prompt, "--output-format", "text", "--max-turns", "4"]
+        cmd = ["claude", "-p", "--output-format", "text", "--max-turns", "4"]
         if model:
             cmd.extend(["--model", model])
         env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
         env["DISABLE_OMC"] = "1"
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, env=env, cwd="/tmp")
+        result = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=300, env=env, cwd="/tmp")
     except subprocess.TimeoutExpired:
         log.error("Claude CLI timed out")
         return []
@@ -415,7 +411,7 @@ def curate_with_claude(articles: list[Article], config: dict) -> list[Article]:
         log.error("Empty response from Claude CLI")
         return []
 
-    log.info("Claude raw response:\n%s", text)
+    log.debug("Claude raw response:\n%s", text)
 
     # Strip markdown code fences if present
     if text.startswith("```"):
