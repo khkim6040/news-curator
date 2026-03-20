@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import signal
 import sqlite3
 import subprocess
 import sys
@@ -34,6 +35,16 @@ logging.basicConfig(
     ],
 )
 log = logging.getLogger(__name__)
+
+
+def _setup_signal_handlers():
+    """SIGTERM 등 시그널 수신 시 로그를 남기고 종료 (exit 128+signum)."""
+    def _handle_signal(signum, frame):
+        sig_name = signal.Signals(signum).name
+        log.error("Received signal %s (%d) — shutting down", sig_name, signum)
+        sys.exit(128 + signum)
+    signal.signal(signal.SIGTERM, _handle_signal)
+    signal.signal(signal.SIGHUP, _handle_signal)
 
 
 def parse_args() -> argparse.Namespace:
@@ -385,6 +396,7 @@ def curate_with_claude(articles: list[Article], config: dict) -> list[Article]:
 
     log.info("Calling Claude CLI (%s) with %d articles …", model or "default", len(articles))
 
+    t_cli_start = time.monotonic()
     try:
         cmd = ["claude", "-p", "--output-format", "text", "--max-turns", "4"]
         if model:
@@ -392,25 +404,40 @@ def curate_with_claude(articles: list[Article], config: dict) -> list[Article]:
         env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
         env["DISABLE_OMC"] = "1"
         result = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=300, env=env, cwd="/tmp")
-    except subprocess.TimeoutExpired:
-        log.error("Claude CLI timed out")
+    except subprocess.TimeoutExpired as e:
+        elapsed = time.monotonic() - t_cli_start
+        partial_out = (e.stdout or "")[:500] if e.stdout else "(none)"
+        partial_err = (e.stderr or "")[:500] if e.stderr else "(none)"
+        log.error("Claude CLI timed out after %.1fs\n  partial stdout: %s\n  partial stderr: %s",
+                  elapsed, partial_out, partial_err)
         return []
     except FileNotFoundError:
         log.error("'claude' CLI not found. Install: npm install -g @anthropic-ai/claude-code")
         return []
     except Exception as e:
-        log.error("Claude CLI unexpected error: %s", e)
+        elapsed = time.monotonic() - t_cli_start
+        log.error("Claude CLI unexpected error after %.1fs: %s", elapsed, e, exc_info=True)
         return []
 
+    elapsed = time.monotonic() - t_cli_start
+    log.info("Claude CLI finished in %.1fs (exit %d)", elapsed, result.returncode)
+
     if result.returncode != 0:
-        log.error("Claude CLI error (exit %d): %s", result.returncode, result.stderr[:500])
+        stderr_text = result.stderr or ""
+        log.error("Claude CLI error (exit %d): stderr (%d chars, first 1000):\n  %s",
+                  result.returncode, len(stderr_text), stderr_text[:1000])
+        if len(stderr_text) > 1000:
+            log.debug("Full Claude CLI stderr (%d chars):\n%s", len(stderr_text), stderr_text)
         return []
 
     text = result.stdout.strip()
     if not text:
-        log.error("Empty response from Claude CLI")
+        stderr_text = result.stderr or ""
+        log.error("Empty response from Claude CLI: stderr (%d chars, first 1000):\n  %s",
+                  len(stderr_text), stderr_text[:1000])
         return []
 
+    log.info("Claude response length: %d chars", len(text))
     log.debug("Claude raw response:\n%s", text)
 
     # Strip markdown code fences if present
@@ -884,9 +911,12 @@ def load_config(path: Path) -> dict:
 
 
 if __name__ == "__main__":
+    log.info("Python %s (%s)", sys.version, sys.executable)
+    _setup_signal_handlers()
     try:
         main()
     except KeyboardInterrupt:
         log.info("Interrupted by user")
     except Exception as e:
         log.error("Unexpected error: %s", e, exc_info=True)
+        sys.exit(1)
