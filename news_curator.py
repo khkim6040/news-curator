@@ -38,7 +38,7 @@ log = logging.getLogger(__name__)
 
 
 def _setup_signal_handlers():
-    """SIGTERM 등 시그널 수신 시 로그를 남기고 정상 종료."""
+    """SIGTERM 등 시그널 수신 시 로그를 남기고 종료 (exit 128+signum)."""
     def _handle_signal(signum, frame):
         sig_name = signal.Signals(signum).name
         log.error("Received signal %s (%d) — shutting down", sig_name, signum)
@@ -423,12 +423,18 @@ def curate_with_claude(articles: list[Article], config: dict) -> list[Article]:
     log.info("Claude CLI finished in %.1fs (exit %d)", elapsed, result.returncode)
 
     if result.returncode != 0:
-        log.error("Claude CLI error (exit %d):\n  stderr: %s", result.returncode, result.stderr)
+        stderr_text = result.stderr or ""
+        log.error("Claude CLI error (exit %d): stderr (%d chars, first 1000):\n  %s",
+                  result.returncode, len(stderr_text), stderr_text[:1000])
+        if len(stderr_text) > 1000:
+            log.debug("Full Claude CLI stderr (%d chars):\n%s", len(stderr_text), stderr_text)
         return []
 
     text = result.stdout.strip()
     if not text:
-        log.error("Empty response from Claude CLI (stderr: %s)", result.stderr[:300] if result.stderr else "(none)")
+        stderr_text = result.stderr or ""
+        log.error("Empty response from Claude CLI: stderr (%d chars, first 1000):\n  %s",
+                  len(stderr_text), stderr_text[:1000])
         return []
 
     log.info("Claude response length: %d chars", len(text))
