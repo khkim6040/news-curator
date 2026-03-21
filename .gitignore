@@ -1,6 +1,10 @@
 config.json
 seen.db
+seen.db.bak.*
 curator.log
+launchd_stdout.log
+launchd_stderr.log
 __pycache__/
 .omc/
 **/HANDOFF.md
+test_write
