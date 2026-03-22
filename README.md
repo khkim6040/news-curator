@@ -1,70 +1,35 @@
 # News Curator
 
-RSS 피드에서 기술 뉴스를 수집하고, Claude CLI로 자동 큐레이션하여 Notion 데이터베이스에 매일 다이제스트 페이지를 생성합니다.
+RSS 피드에서 기술 뉴스를 모아 Claude가 읽고 골라주는 자동 큐레이터. 매일 아침 Notion에 다이제스트가 올라온다.
 
-## 파이프라인
+## 왜 만들었나
+
+기술 뉴스를 여러 소스에서 직접 훑는 건 시간이 너무 든다. 관심 분야에 맞는 글만 골라서 한국어 요약과 함께 한 페이지로 받아보고 싶었다.
+
+## 동작 방식
 
 ```
-RSS/Atom 피드 수집 → 중복 제거(SQLite) → 오래된 글 필터링 → Claude CLI 큐레이션 → Notion 페이지 생성
+RSS 피드 수집 → 중복 제거 → Claude CLI로 채점·요약 → Notion 페이지 생성
 ```
 
-- 피드별 최대 8개 기사 수집, 3일 이내 글만 필터링
-- Claude가 페르소나/관심사 기반으로 채점, 한국어 요약 생성
-- 기준 점수 이상의 글만 Notion 페이지에 게시 (점수는 내부 필터링용, 유저에게 비노출)
-- 추천할 글이 없는 날에는 쉬어가기 메시지 표시
+config.json에 피드 목록, 관심사, Notion 토큰을 넣고 실행하면 된다.
 
-## 요구사항
+## 기술 스택
 
-- Python 3.10+
-- [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) (`npm install -g @anthropic-ai/claude-code`)
-- Notion Internal Integration 토큰
-
-외부 Python 패키지 불필요 (표준 라이브러리만 사용)
-
-## 설정
-
-1. `config.example.json`을 복사하여 `config.json` 생성:
-
-```bash
-cp config.example.json config.json
-```
-
-2. Notion 설정:
-   - [Notion Integrations](https://www.notion.so/profile/integrations)에서 Internal Integration 생성 → 토큰 복사
-   - Notion 데이터베이스 생성 (속성: `Name`(제목), `작성일`(날짜))
-   - 데이터베이스 페이지 → `...` → "Add connections" → 생성한 Integration 연결
-   - 공개 공유 원할 시 "Share to web" 활성화
-
-3. `config.json`에 토큰과 데이터베이스 ID 입력
+- Python 3.10+ (외부 패키지 없음, 표준 라이브러리만 사용)
+- Claude CLI -- 기사 채점과 한국어 요약
+- Notion API -- 다이제스트 페이지 생성
+- SQLite -- 중복 기사 필터링
 
 ## 실행
 
 ```bash
+cp config.example.json config.json  # 설정 파일 생성 후 토큰/피드 입력
 python3 news_curator.py
 ```
 
-cron으로 매일 자동 실행 예시:
+cron으로 매일 돌리면 알아서 쌓인다:
 
 ```bash
 0 8 * * * cd /path/to/news-curator && python3 news_curator.py
 ```
-
-## 설정 항목 (`config.json`)
-
-**필수:**
-
-| 섹션 | 키 | 설명 |
-|------|----|------|
-| `feeds[]` | `name`, `url` | RSS/Atom 피드 소스 |
-| `curator` | `persona`, `interests` | 큐레이터 페르소나 및 관심 분야 |
-| `notion` | `token`, `database_id` | Notion API 인증 정보 |
-
-**선택 (기본값 있음):**
-
-| 섹션 | 키 | 기본값 | 설명 |
-|------|----|--------|------|
-| `curator` | `max_articles` | `5` | 최종 선별 최대 기사 수 |
-| `scoring` | `min_score` | `7` | 최소 선별 점수 (1-10) |
-| `scoring` | `max_articles_per_source` | `8` | 피드당 최대 수집 수 |
-| `scoring` | `max_age_days` | `3` | 기사 최대 허용 일수 |
-| `db` | `retention_days` | `30` | SQLite 중복 기록 보관 기간 |
