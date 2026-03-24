@@ -32,5 +32,5 @@ python3 news_curator.py
 cron으로 매일 돌리면 알아서 쌓입니다:
 
 ```bash
-0 8 * * * cd /path/to/news-curator && python3 news_curator.py
+40 7 * * * cd /path/to/news-curator && python3 news_curator.py
 ```
