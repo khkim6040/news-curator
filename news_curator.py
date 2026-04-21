@@ -932,7 +932,63 @@ def _load_dotenv():
 
 def load_config(path: Path) -> dict:
     with open(path, encoding="utf-8") as f:
-        return json.load(f)
+        config = json.load(f)
+    validate_config(config)
+    return config
+
+
+class ConfigError(SystemExit):
+    """Config validation failure — logs the message and exits with code 1."""
+
+    def __init__(self, message: str):
+        log.error("Config validation failed: %s", message)
+        super().__init__(1)
+
+
+def validate_config(config: dict) -> None:
+    """Validate required fields and types in config. Raises ConfigError on failure."""
+    if not isinstance(config, dict):
+        raise ConfigError("config must be a JSON object")
+
+    # -- feeds --
+    if "feeds" not in config:
+        raise ConfigError("missing required key: 'feeds'")
+    feeds = config["feeds"]
+    if not isinstance(feeds, list) or len(feeds) == 0:
+        raise ConfigError("'feeds' must be a non-empty array")
+    for i, feed in enumerate(feeds):
+        if not isinstance(feed, dict):
+            raise ConfigError(f"feeds[{i}] must be an object")
+        if not isinstance(feed.get("name"), str) or not feed["name"]:
+            raise ConfigError(f"feeds[{i}].name must be a non-empty string")
+        if not isinstance(feed.get("url"), str) or not feed["url"]:
+            raise ConfigError(f"feeds[{i}].url must be a non-empty string")
+
+    # -- curator --
+    if "curator" not in config:
+        raise ConfigError("missing required key: 'curator'")
+    curator = config["curator"]
+    if not isinstance(curator, dict):
+        raise ConfigError("'curator' must be an object")
+    interests = curator.get("interests")
+    if not isinstance(interests, list) or len(interests) == 0:
+        raise ConfigError("'curator.interests' must be a non-empty array")
+
+    # -- scoring --
+    if "scoring" not in config:
+        raise ConfigError("missing required key: 'scoring'")
+    scoring = config["scoring"]
+    if not isinstance(scoring, dict):
+        raise ConfigError("'scoring' must be an object")
+    min_score = scoring.get("min_score")
+    if not isinstance(min_score, int):
+        raise ConfigError("'scoring.min_score' must be an integer")
+
+    # -- db --
+    if "db" not in config:
+        raise ConfigError("missing required key: 'db'")
+    if not isinstance(config["db"], dict):
+        raise ConfigError("'db' must be an object")
 
 
 if __name__ == "__main__":

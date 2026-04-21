@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 
 from news_curator import (
     Article,
+    ConfigError,
     strip_html,
     _extract_text_from_html,
     fetch_article_body,
@@ -20,6 +21,7 @@ from news_curator import (
     mark_seen,
     cleanup_db,
     record_run,
+    validate_config,
     _estimate_reading_time,
     _compute_title,
     _build_prompt,
@@ -635,6 +637,162 @@ class TestBuildPromptBodyPreference(unittest.TestCase):
         section = self._article_section(prompt)
         self.assertNotIn("본문:", section)
         self.assertNotIn("요약:", section)
+
+
+# ---------------------------------------------------------------------------
+# validate_config
+# ---------------------------------------------------------------------------
+
+class TestValidateConfig(unittest.TestCase):
+    """validate_config() 필수 필드/타입 검증 테스트."""
+
+    def _base_config(self) -> dict:
+        return {
+            "feeds": [{"name": "Test", "url": "https://example.com/rss"}],
+            "curator": {"interests": ["AI"]},
+            "scoring": {"min_score": 7},
+            "db": {"retention_days": 30},
+        }
+
+    def test_valid_config_passes(self):
+        validate_config(self._base_config())
+
+    def test_valid_config_with_optional_fields(self):
+        cfg = self._base_config()
+        cfg["feeds"][0]["headers"] = {"User-Agent": "Bot"}
+        cfg["curator"]["model"] = "claude-opus-4-6"
+        cfg["blocked_domains"] = ["example.com"]
+        validate_config(cfg)
+
+    # -- feeds --
+
+    def test_missing_feeds(self):
+        cfg = self._base_config()
+        del cfg["feeds"]
+        with self.assertRaises(ConfigError):
+            validate_config(cfg)
+
+    def test_empty_feeds(self):
+        cfg = self._base_config()
+        cfg["feeds"] = []
+        with self.assertRaises(ConfigError):
+            validate_config(cfg)
+
+    def test_feeds_not_list(self):
+        cfg = self._base_config()
+        cfg["feeds"] = "not a list"
+        with self.assertRaises(ConfigError):
+            validate_config(cfg)
+
+    def test_feed_missing_name(self):
+        cfg = self._base_config()
+        cfg["feeds"] = [{"url": "https://example.com/rss"}]
+        with self.assertRaises(ConfigError):
+            validate_config(cfg)
+
+    def test_feed_empty_name(self):
+        cfg = self._base_config()
+        cfg["feeds"] = [{"name": "", "url": "https://example.com/rss"}]
+        with self.assertRaises(ConfigError):
+            validate_config(cfg)
+
+    def test_feed_missing_url(self):
+        cfg = self._base_config()
+        cfg["feeds"] = [{"name": "Test"}]
+        with self.assertRaises(ConfigError):
+            validate_config(cfg)
+
+    def test_feed_empty_url(self):
+        cfg = self._base_config()
+        cfg["feeds"] = [{"name": "Test", "url": ""}]
+        with self.assertRaises(ConfigError):
+            validate_config(cfg)
+
+    def test_feed_not_dict(self):
+        cfg = self._base_config()
+        cfg["feeds"] = ["not a dict"]
+        with self.assertRaises(ConfigError):
+            validate_config(cfg)
+
+    # -- curator --
+
+    def test_missing_curator(self):
+        cfg = self._base_config()
+        del cfg["curator"]
+        with self.assertRaises(ConfigError):
+            validate_config(cfg)
+
+    def test_curator_not_dict(self):
+        cfg = self._base_config()
+        cfg["curator"] = "string"
+        with self.assertRaises(ConfigError):
+            validate_config(cfg)
+
+    def test_missing_interests(self):
+        cfg = self._base_config()
+        cfg["curator"] = {}
+        with self.assertRaises(ConfigError):
+            validate_config(cfg)
+
+    def test_empty_interests(self):
+        cfg = self._base_config()
+        cfg["curator"]["interests"] = []
+        with self.assertRaises(ConfigError):
+            validate_config(cfg)
+
+    # -- scoring --
+
+    def test_missing_scoring(self):
+        cfg = self._base_config()
+        del cfg["scoring"]
+        with self.assertRaises(ConfigError):
+            validate_config(cfg)
+
+    def test_scoring_not_dict(self):
+        cfg = self._base_config()
+        cfg["scoring"] = []
+        with self.assertRaises(ConfigError):
+            validate_config(cfg)
+
+    def test_missing_min_score(self):
+        cfg = self._base_config()
+        cfg["scoring"] = {}
+        with self.assertRaises(ConfigError):
+            validate_config(cfg)
+
+    def test_min_score_not_int(self):
+        cfg = self._base_config()
+        cfg["scoring"]["min_score"] = "high"
+        with self.assertRaises(ConfigError):
+            validate_config(cfg)
+
+    # -- db --
+
+    def test_missing_db(self):
+        cfg = self._base_config()
+        del cfg["db"]
+        with self.assertRaises(ConfigError):
+            validate_config(cfg)
+
+    def test_db_not_dict(self):
+        cfg = self._base_config()
+        cfg["db"] = 42
+        with self.assertRaises(ConfigError):
+            validate_config(cfg)
+
+    # -- top-level --
+
+    def test_config_not_dict(self):
+        with self.assertRaises(ConfigError):
+            validate_config([])
+
+    def test_error_message_includes_field(self):
+        cfg = self._base_config()
+        del cfg["feeds"]
+        with self.assertRaises(ConfigError), \
+             self.assertLogs("news_curator", level="ERROR") as cm:
+            validate_config(cfg)
+        self.assertTrue(any("feeds" in msg for msg in cm.output))
 
 
 if __name__ == "__main__":
