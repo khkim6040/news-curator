@@ -1,4 +1,4 @@
-config.json
+.env
 seen.db
 seen.db.bak.*
 curator.log

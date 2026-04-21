@@ -664,9 +664,15 @@ def _compute_title(curated: list[Article]) -> str:
 
 def upload_to_notion(curated: list[Article], errors: list[str], config: dict):
     """Create a Notion database page with the curated digest."""
-    ncfg = config["notion"]
-    token = ncfg["token"]
-    database_id = ncfg["database_id"]
+    ncfg = config.get("notion", {})
+    token = os.environ.get("NOTION_TOKEN") or ncfg.get("token")
+    if not token:
+        log.error("NOTION_TOKEN environment variable is not set")
+        raise SystemExit(1)
+    database_id = os.environ.get("NOTION_DATABASE_ID") or ncfg.get("database_id")
+    if not database_id:
+        log.error("NOTION_DATABASE_ID environment variable is not set")
+        raise SystemExit(1)
     today = datetime.now().strftime("%Y-%m-%d")
     title = _compute_title(curated)
 
@@ -910,6 +916,20 @@ def main():
     log.info("=== News Curator finished ===")
 
 
+def _load_dotenv():
+    """Load .env file from the project directory into os.environ."""
+    env_path = BASE_DIR / ".env"
+    if not env_path.exists():
+        return
+    with open(env_path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip())
+
+
 def load_config(path: Path) -> dict:
     with open(path, encoding="utf-8") as f:
         return json.load(f)
@@ -917,6 +937,7 @@ def load_config(path: Path) -> dict:
 
 if __name__ == "__main__":
     log.info("Python %s (%s)", sys.version, sys.executable)
+    _load_dotenv()
     _setup_signal_handlers()
     try:
         main()
