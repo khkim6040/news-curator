@@ -210,6 +210,57 @@
       "name": "Plaid",
       "url": "https://plaid.com/blog/rss.xml",
       "headers": {}
+    },
+    {
+      "name": "Istio Blog",
+      "url": "https://istio.io/latest/blog/feed.xml",
+      "headers": {}
+    },
+    {
+      "name": "Discord Engineering",
+      "url": "https://discord.com/blog/rss.xml",
+      "headers": {}
+    },
+    {
+      "name": "ThoughtWorks Insights",
+      "url": "https://www.thoughtworks.com/rss/insights.xml",
+      "headers": {}
+    },
+    {
+      "name": "Monzo",
+      "url": "https://medium.com/feed/monzo-bank",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
+      }
+    },
+    {
+      "name": "Coupang Engineering",
+      "url": "https://medium.com/feed/coupang-engineering",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
+      }
+    },
+    {
+      "name": "Airbnb Engineering",
+      "url": "https://medium.com/feed/airbnb-engineering",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
+      }
+    },
+    {
+      "name": "Dropbox Tech",
+      "url": "https://dropbox.tech/feed",
+      "headers": {}
+    },
+    {
+      "name": "Simon Willison",
+      "url": "https://simonwillison.net/atom/everything/",
+      "headers": {}
+    },
+    {
+      "name": "Martin Kleppmann",
+      "url": "https://feeds.feedburner.com/martinkl",
+      "headers": {}
     }
   ],
   "curator": {
