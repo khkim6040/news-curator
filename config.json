@@ -1,0 +1,235 @@
+{
+  "feeds": [
+    {
+      "name": "GeekNews",
+      "url": "https://news.hada.io/rss/news",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
+      }
+    },
+    {
+      "name": "Hacker News",
+      "url": "https://hnrss.org/frontpage",
+      "headers": {}
+    },
+    {
+      "name": "InfoQ",
+      "url": "https://feed.infoq.com/",
+      "headers": {}
+    },
+{
+      "name": "토스 기술블로그",
+      "url": "https://toss.tech/rss.xml",
+      "headers": {}
+    },
+    {
+      "name": "우아한형제들",
+      "url": "https://techblog.woowahan.com/feed/",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
+      }
+    },
+    {
+      "name": "카카오페이",
+      "url": "https://tech.kakaopay.com/rss",
+      "headers": {}
+    },
+    {
+      "name": "당근",
+      "url": "https://medium.com/feed/daangn",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
+      }
+    },
+    {
+      "name": "LINE Engineering",
+      "url": "https://engineering.linecorp.com/ko/feed/",
+      "headers": {}
+    },
+    {
+      "name": "Stripe Engineering",
+      "url": "https://stripe.com/blog/feed.rss",
+      "headers": {}
+    },
+    {
+      "name": "Square Engineering",
+      "url": "https://developer.squareup.com/blog/rss.xml",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
+      }
+    },
+    {
+      "name": "Netflix Tech Blog",
+      "url": "https://medium.com/feed/@NetflixTechBlog",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
+      }
+    },
+    {
+      "name": "Cloudflare Blog",
+      "url": "https://blog.cloudflare.com/rss/",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
+      }
+    },
+    {
+      "name": "Martin Fowler",
+      "url": "https://martinfowler.com/feed.atom",
+      "headers": {}
+    },
+    {
+      "name": "The Pragmatic Engineer",
+      "url": "https://newsletter.pragmaticengineer.com/feed",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
+      }
+    },
+    {
+      "name": "Grab Tech",
+      "url": "https://engineering.grab.com/feed.xml",
+      "headers": {}
+    },
+    {
+      "name": "PayPal Tech",
+      "url": "https://medium.com/feed/paypal-tech",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
+      }
+    },
+    {
+      "name": "Inside.java",
+      "url": "https://inside.java/feed.xml",
+      "headers": {}
+    },
+    {
+      "name": "Spring Blog",
+      "url": "https://spring.io/blog.atom",
+      "headers": {}
+    },
+    {
+      "name": "Kotlin Blog",
+      "url": "https://blog.jetbrains.com/kotlin/feed/",
+      "headers": {}
+    },
+    {
+      "name": "Piotr's TechBlog",
+      "url": "https://piotrminkowski.com/feed/",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
+      }
+    },
+    {
+      "name": "Engineering at Meta",
+      "url": "https://engineering.fb.com/feed/",
+      "headers": {}
+    },
+    {
+      "name": "Confluent",
+      "url": "https://www.confluent.io/feed/",
+      "headers": {}
+    },
+    {
+      "name": "High Scalability",
+      "url": "https://highscalability.com/feed/",
+      "headers": {}
+    },
+    {
+      "name": "Spotify Engineering",
+      "url": "https://engineering.atspotify.com/feed",
+      "headers": {}
+    },
+    {
+      "name": "ByteByteGo",
+      "url": "https://blog.bytebytego.com/feed",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
+      }
+    },
+    {
+      "name": "Irrational Exuberance",
+      "url": "https://lethain.com/feeds.xml",
+      "headers": {}
+    },
+    {
+      "name": "카카오 Tech",
+      "url": "https://tech.kakao.com/feed/",
+      "headers": {}
+    },
+    {
+      "name": "Baeldung",
+      "url": "https://feeds.feedblitz.com/baeldung",
+      "headers": {}
+    },
+    {
+      "name": "PlanetScale",
+      "url": "https://planetscale.com/blog/feed.atom",
+      "headers": {}
+    },
+    {
+      "name": "Kubernetes Blog",
+      "url": "https://kubernetes.io/feed.xml",
+      "headers": {}
+    },
+    {
+      "name": "OpenAI Blog",
+      "url": "https://openai.com/blog/rss.xml",
+      "headers": {}
+    },
+    {
+      "name": "AWS Architecture Blog",
+      "url": "https://aws.amazon.com/blogs/architecture/feed/",
+      "headers": {}
+    },
+    {
+      "name": "GitHub Engineering",
+      "url": "https://github.blog/engineering/feed/",
+      "headers": {}
+    },
+    {
+      "name": "Wise Engineering",
+      "url": "https://medium.com/feed/wise-engineering",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
+      }
+    },
+    {
+      "name": "Klarna Engineering",
+      "url": "https://medium.com/feed/klarna-engineering",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
+      }
+    },
+    {
+      "name": "뱅크샐러드",
+      "url": "https://blog.banksalad.com/rss.xml",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
+      }
+    },
+    {
+      "name": "Plaid",
+      "url": "https://plaid.com/blog/rss.xml",
+      "headers": {}
+    }
+  ],
+  "curator": {
+    "model": "claude-opus-4-6",
+    "persona": "네이버페이 백엔드 개발자. 결제/정산 시스템, 대규모 트래픽 처리, MSA 아키텍처에 관심. AI/LLM을 활용한 개발 생산성 향상에도 관심이 많음.",
+    "interests": [
+      "핀테크/결제 산업 동향 및 규제",
+      "AI/LLM 기술 발전과 개발 실무 활용",
+      "백엔드/인프라 기술 (Kotlin, Spring, K8s, Kafka 등)",
+      "시스템 설계와 아키텍처 패턴 (MSA, 이벤트 드리븐 등)",
+      "보안/개인정보 이슈"
+    ],
+    "max_articles": 5
+  },
+  "scoring": {
+    "min_score": 7,
+    "max_articles_per_source": 8,
+    "max_age_days": 3
+  },
+  "db": {
+    "retention_days": 30
+  }
+}
