@@ -261,10 +261,17 @@
       "name": "Martin Kleppmann",
       "url": "https://feeds.feedburner.com/martinkl",
       "headers": {}
+    },
+    {
+      "name": "Pinterest Engineering",
+      "url": "https://medium.com/feed/@Pinterest_Engineering",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
+      }
     }
   ],
   "curator": {
-    "model": "claude-opus-4-6",
+    "model": "claude-opus-4-7",
     "persona": "네이버페이 백엔드 개발자. 결제/정산 시스템, 대규모 트래픽 처리, MSA 아키텍처에 관심. AI/LLM을 활용한 개발 생산성 향상에도 관심이 많음.",
     "interests": [
       "핀테크/결제 산업 동향 및 규제",
