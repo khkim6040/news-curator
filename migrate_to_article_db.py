@@ -4,6 +4,7 @@
 import argparse
 import json
 import logging
+import os
 import sys
 import time
 from pathlib import Path
@@ -223,6 +224,20 @@ def build_article_payload(article_dict: dict, article_db_id: str, curation_date:
     }
 
 
+def _load_dotenv():
+    """Load .env file from the project directory into os.environ."""
+    env_path = Path(__file__).parent / ".env"
+    if not env_path.exists():
+        return
+    with open(env_path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip())
+
+
 # ---------------------------------------------------------------------------
 # Migration logic
 # ---------------------------------------------------------------------------
@@ -238,12 +253,12 @@ def migrate(config_path: str, dry_run: bool = False) -> None:
         config = json.load(f)
 
     notion = config.get("notion", {})
-    token = notion.get("token")
-    digest_db_id = notion.get("database_id")
+    token = os.environ.get("NOTION_TOKEN") or notion.get("token")
+    digest_db_id = os.environ.get("NOTION_DATABASE_ID") or notion.get("database_id")
     article_db_id = notion.get("article_database_id")
 
     if not token or not digest_db_id or not article_db_id:
-        log.error("Config must have notion.token, notion.database_id, and notion.article_database_id")
+        log.error("NOTION_TOKEN, digest database_id, and article_database_id are all required")
         sys.exit(1)
 
     # Fetch all digest pages
@@ -329,4 +344,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    _load_dotenv()
     main()
