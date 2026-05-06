@@ -730,6 +730,31 @@ def upload_to_notion(curated: list[Article], errors: list[str], config: dict):
     log.info("Notion page created: %s", page_url)
 
 
+def upload_articles_to_db(curated: list[Article], config: dict):
+    """Upload individual articles to the article Notion DB (opt-in)."""
+    ncfg = config.get("notion", {})
+    article_db_id = ncfg.get("article_database_id")
+    if not article_db_id:
+        return
+
+    token = os.environ.get("NOTION_TOKEN") or ncfg.get("token")
+    if not token:
+        log.warning("article_database_id is set but NOTION_TOKEN is missing — skipping article DB upload")
+        return
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    uploaded = 0
+    for article in curated:
+        try:
+            payload = _build_article_page_payload(article, article_db_id, today)
+            _notion_request("pages", token, payload)
+            uploaded += 1
+        except Exception as e:
+            log.warning("Failed to upload article '%s' to article DB: %s", article.title, e)
+
+    log.info("Uploaded %d / %d articles to article DB", uploaded, len(curated))
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -926,6 +951,12 @@ def main():
 
     # 3. Upload to Notion (even if no articles passed curation)
     upload_to_notion(curated, errors, config)
+
+    # 3-1. Upload individual articles to article DB (opt-in)
+    try:
+        upload_articles_to_db(curated, config)
+    except Exception as e:
+        log.warning("Article DB upload failed (non-fatal): %s", e)
 
     # 4. Record run history & cleanup
     record_run(conn, total_fetched, total_new, len(curated), len(errors), source_stats)

@@ -69,3 +69,52 @@ def test_build_article_page_payload_empty_tags():
     payload = _build_article_page_payload(article, "db-id", "2026-05-02")
     assert payload["properties"]["태그"]["multi_select"] == []
     assert payload["properties"]["읽어야 할 이유"]["rich_text"][0]["text"]["content"] == ""
+
+
+from unittest.mock import patch, MagicMock
+from news_curator import upload_articles_to_db
+
+
+def test_upload_articles_skips_when_no_article_db_id():
+    """article_database_id가 없으면 아무것도 하지 않는다."""
+    config = {"notion": {"token": "fake-token"}}
+    with patch("news_curator._notion_request") as mock_req:
+        upload_articles_to_db([], config)
+        mock_req.assert_not_called()
+
+
+def test_upload_articles_calls_notion_api():
+    """article_database_id가 있으면 기사 수만큼 Notion API를 호출한다."""
+    article = Article(
+        title="Test", link="https://example.com/test",
+        description="", pub_date="2026-05-01", source="Test",
+        score=8, summary="요약", tags=["태그"], reason="이유",
+    )
+    config = {
+        "notion": {
+            "token": "fake-token",
+            "article_database_id": "art-db-id",
+        },
+    }
+    with patch("news_curator._notion_request", return_value={"id": "page-1"}) as mock_req:
+        upload_articles_to_db([article], config)
+        assert mock_req.call_count == 1
+        call_args = mock_req.call_args
+        assert call_args[0][0] == "pages"
+        payload = call_args[0][2]
+        assert payload["parent"]["database_id"] == "art-db-id"
+
+
+def test_upload_articles_continues_on_single_failure():
+    """하나의 기사 업로드가 실패해도 나머지를 계속 처리한다."""
+    articles = [
+        Article(title="A", link="https://a.com", description="", pub_date="",
+                source="S", score=7, summary="s", tags=[], reason=""),
+        Article(title="B", link="https://b.com", description="", pub_date="",
+                source="S", score=8, summary="s", tags=[], reason=""),
+    ]
+    config = {"notion": {"token": "t", "article_database_id": "db"}}
+
+    side_effects = [Exception("API error"), {"id": "page-2"}]
+    with patch("news_curator._notion_request", side_effect=side_effects):
+        upload_articles_to_db(articles, config)  # should not raise
