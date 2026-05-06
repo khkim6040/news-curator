@@ -80,3 +80,54 @@ def test_parse_callout_non_callout_block():
     """callout이 아닌 블록은 None을 반환한다."""
     block = {"type": "paragraph", "paragraph": {"rich_text": []}}
     assert parse_callout_block(block) is None
+
+
+def test_parse_callout_notion_api_format():
+    """Notion API가 반환하는 실제 형식(color: default, 점수 세그먼트 포함)을 파싱한다."""
+    block = {
+        "type": "callout",
+        "callout": {
+            "rich_text": [
+                {
+                    "type": "text",
+                    "text": {"content": "sql-tap - 터미널 UI 기반 실시간 SQL 트래픽 뷰어", "link": {"url": "https://news.hada.io/topic?id=26884"}},
+                    "annotations": {"bold": True, "italic": False, "strikethrough": False, "underline": False, "code": False, "color": "default"},
+                },
+                {
+                    "type": "text",
+                    "text": {"content": "  [8/10]", "link": None},
+                    "annotations": {"bold": True, "italic": False, "strikethrough": False, "underline": False, "code": False, "color": "red"},
+                },
+                {
+                    "type": "text",
+                    "text": {"content": "  via GeekNews", "link": None},
+                    "annotations": {"bold": False, "italic": True, "strikethrough": False, "underline": False, "code": False, "color": "gray"},
+                },
+                {
+                    "type": "text",
+                    "text": {"content": "\n백엔드 인프라 · 데이터베이스 모니터링", "link": None},
+                    "annotations": {"bold": False, "italic": False, "strikethrough": False, "underline": False, "code": False, "color": "gray"},
+                },
+                {
+                    "type": "text",
+                    "text": {"content": "\nsql-tap은 PostgreSQL, MySQL 등의 SQL 쿼리를 실시간으로 모니터링하는 솔루션이다.", "link": None},
+                    "annotations": {"bold": False, "italic": False, "strikethrough": False, "underline": False, "code": False, "color": "default"},
+                },
+                {
+                    "type": "text",
+                    "text": {"content": "\n💬 대규모 트래픽 처리 환경에서 쿼리 성능 분석에 직접 활용 가능한 도구", "link": None},
+                    "annotations": {"bold": False, "italic": True, "strikethrough": False, "underline": False, "code": False, "color": "gray"},
+                },
+            ],
+            "icon": {"type": "emoji", "emoji": "📌"},
+            "color": "gray_background",
+        },
+    }
+    result = parse_callout_block(block)
+    assert result is not None
+    assert result["title"] == "sql-tap - 터미널 UI 기반 실시간 SQL 트래픽 뷰어"
+    assert result["link"] == "https://news.hada.io/topic?id=26884"
+    assert result["source"] == "GeekNews"
+    assert result["tags"] == ["백엔드 인프라", "데이터베이스 모니터링"]
+    assert result["summary"] == "sql-tap은 PostgreSQL, MySQL 등의 SQL 쿼리를 실시간으로 모니터링하는 솔루션이다."
+    assert result["reason"] == "대규모 트래픽 처리 환경에서 쿼리 성능 분석에 직접 활용 가능한 도구"

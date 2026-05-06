@@ -152,35 +152,42 @@ def parse_callout_block(block: dict) -> dict | None:
         content = text_obj.get("content", "")
         link_obj = text_obj.get("link")
         annotations = segment.get("annotations", {})
+        color = annotations.get("color", "default")
+        is_bold = annotations.get("bold", False)
+        is_italic = annotations.get("italic", False)
 
-        # Segment 1: bold + link -> title + URL
-        if annotations.get("bold") and link_obj and link_obj.get("url") and not title:
+        # Bold + link → title + URL
+        if is_bold and link_obj and link_obj.get("url") and not title:
             title = content
             link = link_obj["url"]
             continue
 
-        # Segment 5: italic + gray with 💬 -> reason (check BEFORE segment 2)
-        if annotations.get("italic") and annotations.get("color") == "gray":
-            reason_match = content.find("💬 읽어야 할 이유:")
-            if reason_match >= 0:
-                reason = content[reason_match + len("💬 읽어야 할 이유:"):].strip()
+        # Italic + gray with 💬 → reason
+        if is_italic and color == "gray":
+            if "💬" in content:
+                marker = content.find("💬")
+                # Extract text after 💬 or "💬 읽어야 할 이유:"
+                rest = content[marker:]
+                if "읽어야 할 이유:" in rest:
+                    reason = rest.split("읽어야 할 이유:", 1)[1].strip()
+                else:
+                    reason = rest.lstrip("💬").strip()
                 continue
-            # Segment 2: italic + gray with "via" -> source
-            via_idx = content.find("via ")
-            if via_idx >= 0:
-                source = content[via_idx + 4:].strip()
+            # Italic + gray with "via" → source
+            if "via " in content:
+                source = content.split("via ", 1)[1].strip()
                 continue
             continue
 
-        # Segment 4: gray, not italic, not bold -> tags
-        if annotations.get("color") == "gray" and not annotations.get("italic") and not annotations.get("bold"):
+        # Gray (not italic, not bold) with · → tags
+        if color == "gray" and not is_italic and not is_bold:
             stripped = content.strip()
             if stripped and " · " in stripped:
                 tags = [t.strip() for t in stripped.split(" · ") if t.strip()]
             continue
 
-        # Segment 3: plain text -> summary
-        if not annotations.get("bold") and not annotations.get("italic") and not annotations.get("color"):
+        # Non-bold, non-italic, default/no color → summary
+        if not is_bold and not is_italic and color in ("default", None, ""):
             text = content.strip()
             if text and not summary:
                 summary = text
