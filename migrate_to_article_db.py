@@ -212,8 +212,7 @@ def parse_callout_block(block: dict) -> dict | None:
 def build_article_payload(article_dict: dict, article_db_id: str, curation_date: str) -> dict:
     """Build a Notion page-create payload from a parsed article dict.
 
-    score is set to 0 and 발행일 is None since these are not available in the
-    digest callout blocks.
+    score is set to 0 since it is not available in the digest callout blocks.
     """
     return {
         "parent": {"database_id": article_db_id},
@@ -225,7 +224,6 @@ def build_article_payload(article_dict: dict, article_db_id: str, curation_date:
             "점수": {"number": 0},
             "요약": {"rich_text": [{"text": {"content": article_dict["summary"]}}]},
             "읽어야 할 이유": {"rich_text": [{"text": {"content": article_dict["reason"]}}]},
-            "발행일": {"date": None},
             "큐레이션일": {"date": {"start": curation_date}},
         },
     }

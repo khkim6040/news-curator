@@ -32,25 +32,8 @@ def test_build_article_page_payload_full():
     assert p["점수"]["number"] == 8
     assert p["요약"]["rich_text"][0]["text"]["content"] == article.summary
     assert p["읽어야 할 이유"]["rich_text"][0]["text"]["content"] == article.reason
-    assert p["발행일"]["date"]["start"] == "2026-05-01"
     assert p["큐레이션일"]["date"]["start"] == "2026-05-02"
-
-
-def test_build_article_page_payload_no_pub_date():
-    """발행일이 파싱 불가능하면 발행일 property가 None이다."""
-    article = Article(
-        title="제목",
-        link="https://example.com/a",
-        description="",
-        pub_date="invalid-date",
-        source="InfoQ",
-        score=7,
-        summary="요약",
-        tags=["태그"],
-        reason="이유",
-    )
-    payload = _build_article_page_payload(article, "db-id", "2026-05-02")
-    assert payload["properties"]["발행일"]["date"] is None
+    assert "발행일" not in p
 
 
 def test_build_article_page_payload_empty_tags():

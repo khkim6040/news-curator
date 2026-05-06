@@ -547,11 +547,6 @@ def _estimate_reading_time(description: str) -> str:
 
 def _build_article_page_payload(article: Article, database_id: str, curation_date: str) -> dict:
     """Build a Notion page-create payload for one article in the article DB."""
-    pub_date_iso = None
-    dt = parse_pub_date(article.pub_date)
-    if dt:
-        pub_date_iso = dt.strftime("%Y-%m-%d")
-
     return {
         "parent": {"database_id": database_id},
         "properties": {
@@ -562,7 +557,6 @@ def _build_article_page_payload(article: Article, database_id: str, curation_dat
             "점수": {"number": article.score},
             "요약": {"rich_text": [{"text": {"content": article.summary}}]},
             "읽어야 할 이유": {"rich_text": [{"text": {"content": article.reason}}]},
-            "발행일": {"date": {"start": pub_date_iso} if pub_date_iso else None},
             "큐레이션일": {"date": {"start": curation_date}},
         },
     }
