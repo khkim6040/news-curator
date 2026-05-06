@@ -7,4 +7,5 @@ launchd_stderr.log
 __pycache__/
 .omc/
 **/HANDOFF.md
+docs/superpowers/
 test_write
