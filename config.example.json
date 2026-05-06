@@ -35,6 +35,11 @@
   "blocked_domains": [
     "blog.bytebytego.com"
   ],
+  "notion": {
+    "token": "ntn_xxx",
+    "database_id": "your-digest-database-id",
+    "article_database_id": "your-article-database-id (optional, enables per-article DB)"
+  },
   "db": {
     "retention_days": 30
   }
