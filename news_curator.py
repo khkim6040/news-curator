@@ -407,6 +407,19 @@ def _build_prompt(articles: list[Article], config: dict) -> str:
 {article_text}"""
 
 
+def _run_claude_cli(prompt: str, model: str | None) -> subprocess.CompletedProcess:
+    """Run the Claude CLI once and return the CompletedProcess."""
+    cmd = ["claude", "-p", "--output-format", "text", "--max-turns", "4"]
+    if model:
+        cmd.extend(["--model", model])
+    env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+    env["DISABLE_OMC"] = "1"
+    return subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=300, env=env, cwd="/tmp")
+
+
+_CLI_MAX_RETRIES = 2
+
+
 def curate_with_claude(articles: list[Article], config: dict) -> list[Article]:
     """Call Claude CLI to curate articles."""
     cur = config["curator"]
@@ -415,44 +428,45 @@ def curate_with_claude(articles: list[Article], config: dict) -> list[Article]:
 
     log.info("Calling Claude CLI (%s) with %d articles …", model or "default", len(articles))
 
-    t_cli_start = time.monotonic()
-    try:
-        cmd = ["claude", "-p", "--output-format", "text", "--max-turns", "4"]
-        if model:
-            cmd.extend(["--model", model])
-        env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
-        env["DISABLE_OMC"] = "1"
-        result = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=300, env=env, cwd="/tmp")
-    except subprocess.TimeoutExpired as e:
-        elapsed = time.monotonic() - t_cli_start
-        partial_out = (e.stdout or "")[:500] if e.stdout else "(none)"
-        partial_err = (e.stderr or "")[:500] if e.stderr else "(none)"
-        log.error("Claude CLI timed out after %.1fs\n  partial stdout: %s\n  partial stderr: %s",
-                  elapsed, partial_out, partial_err)
-        return []
-    except FileNotFoundError:
-        log.error("'claude' CLI not found. Install: npm install -g @anthropic-ai/claude-code")
-        return []
-    except Exception as e:
-        elapsed = time.monotonic() - t_cli_start
-        log.error("Claude CLI unexpected error after %.1fs: %s", elapsed, e, exc_info=True)
-        return []
+    result = None
+    for attempt in range(1, _CLI_MAX_RETRIES + 1):
+        t_cli_start = time.monotonic()
+        try:
+            result = _run_claude_cli(prompt, model)
+        except subprocess.TimeoutExpired as e:
+            elapsed = time.monotonic() - t_cli_start
+            partial_out = (e.stdout or "")[:500] if e.stdout else "(none)"
+            partial_err = (e.stderr or "")[:500] if e.stderr else "(none)"
+            log.error("Claude CLI timed out after %.1fs\n  partial stdout: %s\n  partial stderr: %s",
+                      elapsed, partial_out, partial_err)
+            return []
+        except FileNotFoundError:
+            log.error("'claude' CLI not found. Install: npm install -g @anthropic-ai/claude-code")
+            return []
+        except Exception as e:
+            elapsed = time.monotonic() - t_cli_start
+            log.error("Claude CLI unexpected error after %.1fs: %s", elapsed, e, exc_info=True)
+            return []
 
-    elapsed = time.monotonic() - t_cli_start
-    log.info("Claude CLI finished in %.1fs (exit %d)", elapsed, result.returncode)
+        elapsed = time.monotonic() - t_cli_start
+        log.info("Claude CLI finished in %.1fs (exit %d)", elapsed, result.returncode)
 
-    if result.returncode != 0:
+        if result.returncode == 0:
+            break
+
         stderr_text = result.stderr or ""
         stdout_text = result.stdout or ""
-        log.error("Claude CLI error (exit %d): stderr (%d chars, first 1000):\n  %s",
-                  result.returncode, len(stderr_text), stderr_text[:1000])
+        log.error("Claude CLI error (exit %d, attempt %d/%d): stderr (%d chars, first 1000):\n  %s",
+                  result.returncode, attempt, _CLI_MAX_RETRIES, len(stderr_text), stderr_text[:1000])
         if stdout_text:
             log.error("Claude CLI stdout on error (%d chars, first 1000):\n  %s",
                       len(stdout_text), stdout_text[:1000])
-        if len(stderr_text) > 1000:
-            log.debug("Full Claude CLI stderr (%d chars):\n%s", len(stderr_text), stderr_text)
-        if len(stdout_text) > 1000:
-            log.debug("Full Claude CLI stdout (%d chars):\n%s", len(stdout_text), stdout_text)
+        if attempt < _CLI_MAX_RETRIES:
+            wait = 10 * attempt
+            log.info("Retrying Claude CLI in %ds …", wait)
+            time.sleep(wait)
+
+    if result.returncode != 0:
         return []
 
     text = result.stdout.strip()
