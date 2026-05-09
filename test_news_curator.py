@@ -22,6 +22,7 @@ from news_curator import (
     cleanup_db,
     record_run,
     validate_config,
+    curate_with_claude,
     _estimate_reading_time,
     _compute_title,
     _build_prompt,
@@ -793,6 +794,55 @@ class TestValidateConfig(unittest.TestCase):
              self.assertLogs("news_curator", level="ERROR") as cm:
             validate_config(cfg)
         self.assertTrue(any("feeds" in msg for msg in cm.output))
+
+
+class TestCurateWithClaudeErrorLogging(unittest.TestCase):
+    """curate_with_claude()가 CLI 실패 시 stdout도 함께 로깅하는지 검증."""
+
+    def _make_articles(self):
+        return [Article(
+            title="Test", link="https://example.com", description="desc",
+            pub_date="2026-05-09", source="test",
+        )]
+
+    def _make_config(self):
+        return {
+            "curator": {"interests": ["tech"], "max_articles": 5},
+            "scoring": {"min_score": 5, "max_articles_per_source": 3},
+        }
+
+    @patch("news_curator.subprocess.run")
+    @patch("news_curator._build_prompt", return_value="fake prompt")
+    def test_nonzero_exit_logs_stdout(self, _mock_prompt, mock_run):
+        """exit code != 0일 때 stdout이 있으면 로깅한다."""
+        mock_run.return_value = MagicMock(
+            returncode=1,
+            stderr="some error",
+            stdout="helpful error info from stdout",
+        )
+        with self.assertLogs("news_curator", level="ERROR") as cm:
+            result = curate_with_claude(self._make_articles(), self._make_config())
+
+        self.assertEqual(result, [])
+        stdout_logged = any("stdout on error" in msg and "helpful error info" in msg
+                           for msg in cm.output)
+        self.assertTrue(stdout_logged, f"stdout not logged in: {cm.output}")
+
+    @patch("news_curator.subprocess.run")
+    @patch("news_curator._build_prompt", return_value="fake prompt")
+    def test_nonzero_exit_no_stdout_skips_stdout_log(self, _mock_prompt, mock_run):
+        """exit code != 0일 때 stdout이 비어있으면 stdout 로그를 남기지 않는다."""
+        mock_run.return_value = MagicMock(
+            returncode=1,
+            stderr="some error",
+            stdout="",
+        )
+        with self.assertLogs("news_curator", level="ERROR") as cm:
+            result = curate_with_claude(self._make_articles(), self._make_config())
+
+        self.assertEqual(result, [])
+        stdout_logged = any("stdout on error" in msg for msg in cm.output)
+        self.assertFalse(stdout_logged, f"stdout should not be logged: {cm.output}")
 
 
 if __name__ == "__main__":

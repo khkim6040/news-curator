@@ -429,10 +429,16 @@ def curate_with_claude(articles: list[Article], config: dict) -> list[Article]:
 
     if result.returncode != 0:
         stderr_text = result.stderr or ""
+        stdout_text = result.stdout or ""
         log.error("Claude CLI error (exit %d): stderr (%d chars, first 1000):\n  %s",
                   result.returncode, len(stderr_text), stderr_text[:1000])
+        if stdout_text:
+            log.error("Claude CLI stdout on error (%d chars, first 1000):\n  %s",
+                      len(stdout_text), stdout_text[:1000])
         if len(stderr_text) > 1000:
             log.debug("Full Claude CLI stderr (%d chars):\n%s", len(stderr_text), stderr_text)
+        if len(stdout_text) > 1000:
+            log.debug("Full Claude CLI stdout (%d chars):\n%s", len(stdout_text), stdout_text)
         return []
 
     text = result.stdout.strip()
