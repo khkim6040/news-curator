@@ -221,10 +221,18 @@ def cleanup_db(conn: sqlite3.Connection, days: int = 30):
 # Feed fetching & parsing
 # ---------------------------------------------------------------------------
 
+_DEFAULT_UA = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+)
+
+
 def fetch_feed(feed_cfg: dict) -> str | None:
     url = feed_cfg["url"]
     headers = feed_cfg.get("headers", {})
     req = Request(url)
+    if "User-Agent" not in headers:
+        req.add_header("User-Agent", _DEFAULT_UA)
     for k, v in headers.items():
         req.add_header(k, v)
     try:
@@ -241,8 +249,14 @@ def fetch_feed(feed_cfg: dict) -> str | None:
         return None
 
 
+def _sanitize_xml(text: str) -> str:
+    """Remove XML-illegal control characters (except tab, newline, carriage return)."""
+    return re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", text)
+
+
 def parse_feed(xml_text: str, source_name: str) -> list[Article]:
     articles = []
+    xml_text = _sanitize_xml(xml_text)
     try:
         root = ET.fromstring(xml_text)
     except ET.ParseError as e:
