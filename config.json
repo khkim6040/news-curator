@@ -287,6 +287,9 @@
     "max_articles_per_source": 8,
     "max_age_days": 3
   },
+  "notion": {
+    "article_database_id": "02a434bbbc4c43bfacca386fbc804c3b"
+  },
   "db": {
     "retention_days": 30
   }
