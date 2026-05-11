@@ -561,13 +561,20 @@ def _notion_request(endpoint: str, token: str, payload: dict, method: str = "POS
         raise
 
 
-def _estimate_reading_time(description: str) -> str:
-    """Estimate reading time based on description length."""
-    # description is truncated to 500 chars; estimate full article from ratio
+def _estimate_reading_time(text: str, is_full_body: bool = False) -> str:
+    """Estimate reading time based on text length.
+
+    When *is_full_body* is True the text is the actual article body, so no
+    multiplier is applied.  Otherwise the text is a short RSS description and
+    the full length is estimated with a heuristic multiplier.
+    """
     # Average Korean reading speed: ~500 chars/min, English: ~200 words/min
-    char_count = len(description)
-    # Rough estimate: description is ~10-20% of full article
-    estimated_full = char_count * 7
+    char_count = len(text)
+    if is_full_body:
+        estimated_full = char_count
+    else:
+        # description is typically ~10-20% of full article
+        estimated_full = char_count * 7
     minutes = max(1, estimated_full // 500)
     if minutes <= 3:
         return "~3분"
@@ -599,7 +606,10 @@ def _build_article_page_payload(article: Article, database_id: str, curation_dat
 def _build_article_blocks(article: Article) -> list[dict]:
     """Build Notion blocks for a single article."""
     tags_text = " · ".join(article.tags) if article.tags else ""
-    reading_time = _estimate_reading_time(article.description)
+    reading_time = _estimate_reading_time(
+        article.body or article.description,
+        is_full_body=bool(article.body),
+    )
 
     # Callout block with article info
     rich_text = [
