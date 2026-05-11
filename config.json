@@ -268,6 +268,81 @@
       "headers": {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
       }
+    },
+    {
+      "name": "Slack Engineering",
+      "url": "https://slack.engineering/feed/",
+      "headers": {}
+    },
+    {
+      "name": "foojay (Friends of OpenJDK)",
+      "url": "https://foojay.io/feed/",
+      "headers": {}
+    },
+    {
+      "name": "Grafana Blog",
+      "url": "https://grafana.com/blog/index.xml",
+      "headers": {}
+    },
+    {
+      "name": "Lyft Engineering",
+      "url": "https://eng.lyft.com/feed",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
+      }
+    },
+    {
+      "name": "JetBrains Blog",
+      "url": "https://blog.jetbrains.com/feed/",
+      "headers": {}
+    },
+    {
+      "name": "NHN Cloud Meetup",
+      "url": "https://meetup.nhncloud.com/rss",
+      "headers": {}
+    },
+    {
+      "name": "Ramp Engineering",
+      "url": "https://engineering.ramp.com/rss.xml",
+      "headers": {}
+    },
+    {
+      "name": "Revolut Tech",
+      "url": "https://medium.com/feed/revolut",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
+      }
+    },
+    {
+      "name": "Sebastian Raschka",
+      "url": "https://magazine.sebastianraschka.com/feed",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
+      }
+    },
+    {
+      "name": "Datadog Blog",
+      "url": "https://www.datadoghq.com/blog/index.xml",
+      "headers": {}
+    },
+    {
+      "name": "컬리 기술블로그",
+      "url": "https://helloworld.kurly.com/rss.xml",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
+      }
+    },
+    {
+      "name": "데브시스터즈",
+      "url": "https://tech.devsisters.com/rss.xml",
+      "headers": {}
+    },
+    {
+      "name": "Capital One Tech",
+      "url": "https://medium.com/feed/capital-one-tech",
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
+      }
     }
   ],
   "curator": {
