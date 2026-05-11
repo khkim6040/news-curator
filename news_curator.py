@@ -137,7 +137,10 @@ def parse_pub_date(date_str: str) -> datetime | None:
     date_str = date_str.strip()
     # RFC 822 (RSS 2.0): "Sat, 22 Feb 2026 10:30:00 +0000"
     try:
-        return parsedate_to_datetime(date_str)
+        dt = parsedate_to_datetime(date_str)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
     except Exception:
         pass
     # ISO 8601 (Atom): "2026-02-22T10:30:00Z"
