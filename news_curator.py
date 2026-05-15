@@ -421,6 +421,7 @@ def _run_claude_cli(prompt: str, model: str | None) -> subprocess.CompletedProce
 
 
 _CLI_MAX_RETRIES = 2
+_CLI_FALLBACK_MODEL = "claude-sonnet-4-20250514"
 
 
 def curate_with_claude(articles: list[Article], config: dict) -> list[Article]:
@@ -470,7 +471,28 @@ def curate_with_claude(articles: list[Article], config: dict) -> list[Article]:
             time.sleep(wait)
 
     if result.returncode != 0:
-        return []
+        # Fallback: cyber-related safeguards → retry once with sonnet
+        combined = (result.stdout or "") + (result.stderr or "")
+        if "cyber-related safeguards" in combined and model != _CLI_FALLBACK_MODEL:
+            log.info("Cyber-related safeguards triggered — retrying with fallback model %s …",
+                     _CLI_FALLBACK_MODEL)
+            t_fb = time.monotonic()
+            try:
+                result = _run_claude_cli(prompt, _CLI_FALLBACK_MODEL)
+            except subprocess.TimeoutExpired:
+                log.error("Fallback model (%s) timed out", _CLI_FALLBACK_MODEL)
+                return []
+            except Exception as e:
+                log.error("Fallback model (%s) unexpected error: %s", _CLI_FALLBACK_MODEL, e)
+                return []
+            log.info("Claude CLI (fallback %s) finished in %.1fs (exit %d)",
+                     _CLI_FALLBACK_MODEL, time.monotonic() - t_fb, result.returncode)
+            if result.returncode != 0:
+                log.error("Fallback model also failed (exit %d): %s",
+                          result.returncode, (result.stdout or "")[:1000])
+                return []
+        else:
+            return []
 
     text = result.stdout.strip()
     if not text:
