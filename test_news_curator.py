@@ -340,8 +340,8 @@ class TestEstimateReadingTime(unittest.TestCase):
         self.assertEqual(_estimate_reading_time("x" * 10), "~2분")
 
     def test_4min_description(self):
-        # 200 chars * 7 = 1400, 1400 // 500 = 2 → ~2분
-        self.assertEqual(_estimate_reading_time("x" * 200), "~2분")
+        # 250 chars * 7 = 1750, 1750 // 500 = 3 → ~4분
+        self.assertEqual(_estimate_reading_time("x" * 250), "~4분")
 
     def test_6min_description(self):
         # 400 chars * 7 = 2800, 2800 // 500 = 5 → ~6분
