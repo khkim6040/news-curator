@@ -601,14 +601,22 @@ def _estimate_reading_time(text: str, is_full_body: bool = False) -> str:
         # description is typically ~10-20% of full article
         estimated_full = char_count * 7
     minutes = max(1, estimated_full // 500)
-    if minutes <= 3:
-        return "~3분"
-    elif minutes <= 7:
-        return "~5분"
+    if minutes <= 2:
+        return "~2분"
+    elif minutes <= 4:
+        return "~4분"
+    elif minutes <= 6:
+        return "~6분"
+    elif minutes <= 9:
+        return "~9분"
     elif minutes <= 12:
-        return "~10분"
+        return "~12분"
+    elif minutes <= 15:
+        return "~15분"
+    elif minutes <= 18:
+        return "~18분"
     else:
-        return "10분+"
+        return "20분+"
 
 
 def _build_article_page_payload(article: Article, database_id: str, curation_date: str) -> dict:

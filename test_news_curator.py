@@ -336,41 +336,73 @@ class TestDatabase(unittest.TestCase):
 class TestEstimateReadingTime(unittest.TestCase):
     # --- description fallback (is_full_body=False, default) ---
     def test_short_description(self):
-        # 10 chars * 7 = 70, 70 // 500 = 0 → max(1,0) = 1 → ~3분
-        self.assertEqual(_estimate_reading_time("x" * 10), "~3분")
+        # 10 chars * 7 = 70, 70 // 500 = 0 → max(1,0) = 1 → ~2분
+        self.assertEqual(_estimate_reading_time("x" * 10), "~2분")
 
-    def test_medium_description(self):
-        # 500 chars * 7 = 3500, 3500 // 500 = 7 → ~5분
-        self.assertEqual(_estimate_reading_time("x" * 500), "~5분")
+    def test_4min_description(self):
+        # 250 chars * 7 = 1750, 1750 // 500 = 3 → ~4분
+        self.assertEqual(_estimate_reading_time("x" * 250), "~4분")
 
-    def test_long_description(self):
-        # 700 chars * 7 = 4900, 4900 // 500 = 9 → ~10분
-        self.assertEqual(_estimate_reading_time("x" * 700), "~10분")
+    def test_6min_description(self):
+        # 400 chars * 7 = 2800, 2800 // 500 = 5 → ~6분
+        self.assertEqual(_estimate_reading_time("x" * 400), "~6분")
 
-    def test_very_long_description(self):
-        # 1000 chars * 7 = 7000, 7000 // 500 = 14 → 10분+
-        self.assertEqual(_estimate_reading_time("x" * 1000), "10분+")
+    def test_9min_description(self):
+        # 600 chars * 7 = 4200, 4200 // 500 = 8 → ~9분
+        self.assertEqual(_estimate_reading_time("x" * 600), "~9분")
+
+    def test_12min_description(self):
+        # 800 chars * 7 = 5600, 5600 // 500 = 11 → ~12분
+        self.assertEqual(_estimate_reading_time("x" * 800), "~12분")
+
+    def test_15min_description(self):
+        # 1000 chars * 7 = 7000, 7000 // 500 = 14 → ~15분
+        self.assertEqual(_estimate_reading_time("x" * 1000), "~15분")
+
+    def test_18min_description(self):
+        # 1200 chars * 7 = 8400, 8400 // 500 = 16 → ~18분
+        self.assertEqual(_estimate_reading_time("x" * 1200), "~18분")
+
+    def test_20plus_description(self):
+        # 2000 chars * 7 = 14000, 14000 // 500 = 28 → 20분+
+        self.assertEqual(_estimate_reading_time("x" * 2000), "20분+")
 
     def test_empty(self):
-        # 0 * 7 = 0, max(1,0) = 1 → ~3분
-        self.assertEqual(_estimate_reading_time(""), "~3분")
+        # 0 * 7 = 0, max(1,0) = 1 → ~2분
+        self.assertEqual(_estimate_reading_time(""), "~2분")
 
     # --- full body (is_full_body=True, no multiplier) ---
     def test_short_body(self):
-        # 500 chars / 500 = 1 → ~3분
-        self.assertEqual(_estimate_reading_time("x" * 500, is_full_body=True), "~3분")
+        # 500 chars / 500 = 1 → ~2분
+        self.assertEqual(_estimate_reading_time("x" * 500, is_full_body=True), "~2분")
 
-    def test_medium_body(self):
-        # 2500 chars / 500 = 5 → ~5분
-        self.assertEqual(_estimate_reading_time("x" * 2500, is_full_body=True), "~5분")
+    def test_4min_body(self):
+        # 1500 chars / 500 = 3 → ~4분
+        self.assertEqual(_estimate_reading_time("x" * 1500, is_full_body=True), "~4분")
 
-    def test_long_body(self):
-        # 5000 chars / 500 = 10 → ~10분
-        self.assertEqual(_estimate_reading_time("x" * 5000, is_full_body=True), "~10분")
+    def test_6min_body(self):
+        # 2500 chars / 500 = 5 → ~6분
+        self.assertEqual(_estimate_reading_time("x" * 2500, is_full_body=True), "~6분")
 
-    def test_very_long_body(self):
-        # 8000 chars / 500 = 16 → 10분+
-        self.assertEqual(_estimate_reading_time("x" * 8000, is_full_body=True), "10분+")
+    def test_9min_body(self):
+        # 4000 chars / 500 = 8 → ~9분
+        self.assertEqual(_estimate_reading_time("x" * 4000, is_full_body=True), "~9분")
+
+    def test_12min_body(self):
+        # 6000 chars / 500 = 12 → ~12분
+        self.assertEqual(_estimate_reading_time("x" * 6000, is_full_body=True), "~12분")
+
+    def test_15min_body(self):
+        # 7000 chars / 500 = 14 → ~15분
+        self.assertEqual(_estimate_reading_time("x" * 7000, is_full_body=True), "~15분")
+
+    def test_18min_body(self):
+        # 9000 chars / 500 = 18 → ~18분
+        self.assertEqual(_estimate_reading_time("x" * 9000, is_full_body=True), "~18분")
+
+    def test_20plus_body(self):
+        # 12000 chars / 500 = 24 → 20분+
+        self.assertEqual(_estimate_reading_time("x" * 12000, is_full_body=True), "20분+")
 
 
 # ---------------------------------------------------------------------------
