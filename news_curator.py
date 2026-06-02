@@ -845,7 +845,7 @@ def upload_to_notion(curated: list[Article], errors: list[str], config: dict):
 def upload_articles_to_db(curated: list[Article], config: dict):
     """Upload individual articles to the article Notion DB (opt-in)."""
     ncfg = config.get("notion", {})
-    article_db_id = ncfg.get("article_database_id")
+    article_db_id = os.environ.get("NOTION_ARTICLE_DATABASE_ID") or ncfg.get("article_database_id")
     if not article_db_id:
         return
 

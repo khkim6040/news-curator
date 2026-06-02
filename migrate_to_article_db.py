@@ -260,7 +260,7 @@ def migrate(config_path: str, dry_run: bool = False) -> None:
     notion = config.get("notion", {})
     token = os.environ.get("NOTION_TOKEN") or notion.get("token")
     digest_db_id = os.environ.get("NOTION_DATABASE_ID") or notion.get("database_id")
-    article_db_id = notion.get("article_database_id")
+    article_db_id = os.environ.get("NOTION_ARTICLE_DATABASE_ID") or notion.get("article_database_id")
 
     if not token or not digest_db_id or not article_db_id:
         log.error("NOTION_TOKEN, digest database_id, and article_database_id are all required")
