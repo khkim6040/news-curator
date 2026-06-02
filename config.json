@@ -347,7 +347,7 @@
   ],
   "curator": {
     "model": "claude-opus-4-7",
-    "persona": "네이버페이 백엔드 개발자. 결제/정산 시스템, 대규모 트래픽 처리, MSA 아키텍처에 관심. AI/LLM을 활용한 개발 생산성 향상에도 관심이 많음.",
+    "persona": "핀테크 백엔드 개발자. 결제/정산 시스템, 대규모 트래픽 처리, MSA 아키텍처에 관심. AI/LLM을 활용한 개발 생산성 향상에도 관심이 많음.",
     "interests": [
       "핀테크/결제 산업 동향 및 규제",
       "AI/LLM 기술 발전과 개발 실무 활용",
@@ -363,7 +363,7 @@
     "max_age_days": 3
   },
   "notion": {
-    "article_database_id": "02a434bbbc4c43bfacca386fbc804c3b"
+    "article_database_id": ""
   },
   "db": {
     "retention_days": 30

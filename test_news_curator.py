@@ -23,6 +23,7 @@ from news_curator import (
     record_run,
     validate_config,
     curate_with_claude,
+    _resolve_claude_bin,
     _estimate_reading_time,
     _compute_title,
     _build_prompt,
@@ -893,6 +894,41 @@ class TestCurateWithClaudeErrorLogging(unittest.TestCase):
         self.assertEqual(result, [])
         stdout_logged = any("stdout on error" in msg for msg in cm.output)
         self.assertFalse(stdout_logged, f"stdout should not be logged: {cm.output}")
+
+
+# ---------------------------------------------------------------------------
+# _resolve_claude_bin — robust CLI discovery (launchd PATH regression)
+# ---------------------------------------------------------------------------
+
+class TestResolveClaudeBin(unittest.TestCase):
+    def test_prefers_path_lookup(self):
+        with patch("news_curator.shutil.which", return_value="/path/from/which/claude"):
+            self.assertEqual(_resolve_claude_bin(), "/path/from/which/claude")
+
+    def test_falls_back_to_nvm_when_not_on_path(self):
+        """Regression: launchd PATH lacks nvm bin, but the CLI is installed there."""
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            nvm_bin = home / ".nvm" / "versions" / "node" / "v22.13.1" / "bin"
+            nvm_bin.mkdir(parents=True)
+            claude_path = nvm_bin / "claude"
+            claude_path.write_text("#!/bin/sh\n")
+
+            with patch("news_curator.shutil.which", return_value=None), \
+                 patch("news_curator.Path.home", return_value=home):
+                self.assertEqual(_resolve_claude_bin(), str(claude_path))
+
+    def test_returns_bare_name_when_nothing_found(self):
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("news_curator.shutil.which", return_value=None), \
+                 patch("news_curator.Path.home", return_value=Path(tmp)):
+                self.assertEqual(_resolve_claude_bin(), "claude")
 
 
 if __name__ == "__main__":
