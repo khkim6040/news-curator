@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import signal
 import sqlite3
 import subprocess
@@ -410,9 +411,49 @@ def _build_prompt(articles: list[Article], config: dict) -> str:
 {article_text}"""
 
 
+def _resolve_claude_bin() -> str:
+    """Locate the `claude` CLI robustly.
+
+    launchd (and other minimal-environment) runs do not inherit the interactive
+    shell PATH, so a bare "claude" lookup can fail even though the CLI is
+    installed (e.g. under nvm). Try PATH first, then known install locations,
+    globbing nvm node versions so a node upgrade does not break the daily job.
+    Falls back to the bare name so the existing FileNotFoundError handling still
+    applies when nothing is found.
+    """
+    found = shutil.which("claude")
+    if found:
+        return found
+
+    home = Path.home()
+    candidates: list[Path] = [
+        home / ".claude" / "local" / "claude",
+        home / ".local" / "bin" / "claude",
+        Path("/opt/homebrew/bin/claude"),
+        Path("/usr/local/bin/claude"),
+    ]
+
+    # nvm installs: prefer the default-aliased node version, then any version.
+    nvm_versions = home / ".nvm" / "versions" / "node"
+    default_alias = home / ".nvm" / "alias" / "default"
+    if default_alias.exists():
+        ver = default_alias.read_text().strip()
+        if ver and not ver.startswith("v"):
+            ver = "v" + ver
+        candidates.append(nvm_versions / ver / "bin" / "claude")
+    if nvm_versions.is_dir():
+        candidates.extend(sorted(nvm_versions.glob("*/bin/claude"), reverse=True))
+
+    for c in candidates:
+        if c.exists():
+            return str(c)
+
+    return "claude"
+
+
 def _run_claude_cli(prompt: str, model: str | None) -> subprocess.CompletedProcess:
     """Run the Claude CLI once and return the CompletedProcess."""
-    cmd = ["claude", "-p", "--output-format", "text", "--max-turns", "4"]
+    cmd = [_resolve_claude_bin(), "-p", "--output-format", "text", "--max-turns", "4"]
     if model:
         cmd.extend(["--model", model])
     env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
