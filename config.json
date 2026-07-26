@@ -17,7 +17,7 @@
       "url": "https://feed.infoq.com/",
       "headers": {}
     },
-{
+    {
       "name": "토스 기술블로그",
       "url": "https://toss.tech/rss.xml",
       "headers": {}
@@ -50,13 +50,6 @@
       "name": "Stripe Engineering",
       "url": "https://stripe.com/blog/feed.rss",
       "headers": {}
-    },
-    {
-      "name": "Square Engineering",
-      "url": "https://developer.squareup.com/blog/rss.xml",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
-      }
     },
     {
       "name": "Netflix Tech Blog",
@@ -171,11 +164,6 @@
       "headers": {}
     },
     {
-      "name": "OpenAI Blog",
-      "url": "https://openai.com/blog/rss.xml",
-      "headers": {}
-    },
-    {
       "name": "AWS Architecture Blog",
       "url": "https://aws.amazon.com/blogs/architecture/feed/",
       "headers": {}
@@ -200,30 +188,13 @@
       }
     },
     {
-      "name": "뱅크샐러드",
-      "url": "https://blog.banksalad.com/rss.xml",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
-      }
-    },
-    {
       "name": "Plaid",
       "url": "https://plaid.com/blog/rss.xml",
       "headers": {}
     },
     {
-      "name": "Istio Blog",
-      "url": "https://istio.io/latest/blog/feed.xml",
-      "headers": {}
-    },
-    {
       "name": "Discord Engineering",
       "url": "https://discord.com/blog/rss.xml",
-      "headers": {}
-    },
-    {
-      "name": "ThoughtWorks Insights",
-      "url": "https://www.thoughtworks.com/rss/insights.xml",
       "headers": {}
     },
     {
@@ -323,18 +294,6 @@
     {
       "name": "Datadog Blog",
       "url": "https://www.datadoghq.com/blog/index.xml",
-      "headers": {}
-    },
-    {
-      "name": "컬리 기술블로그",
-      "url": "https://helloworld.kurly.com/rss.xml",
-      "headers": {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0"
-      }
-    },
-    {
-      "name": "데브시스터즈",
-      "url": "https://tech.devsisters.com/rss.xml",
       "headers": {}
     },
     {

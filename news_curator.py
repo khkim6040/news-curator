@@ -944,6 +944,7 @@ def main():
 
     # 1. Fetch all feeds in parallel
     all_articles: list[Article] = []
+    all_fetched: list[Article] = []
     max_per = config["scoring"].get("max_articles_per_source", 15)
 
     feed_results: dict[str, str | None] = {}
@@ -985,8 +986,16 @@ def main():
         new = [a for a in parsed if not is_seen(conn, a.link)]
         log.info("New from %s: %d / %d", name, len(new), len(parsed))
         all_articles.extend(new[:max_per])
+        all_fetched.extend(parsed)
         total_fetched += len(parsed)
         source_stats[name] = {"fetched": len(parsed), "new": len(new), "curated": 0}
+
+    # Mark ALL fetched articles as seen right away — including ones about to be
+    # dropped by the date filter or the per-source cap below. Otherwise a feed
+    # that ships a large old back-catalog re-reports the same items as "new" on
+    # every run forever (they never survive to the post-curation mark_seen).
+    if not args.dry_run:
+        mark_seen(conn, all_fetched)
 
     # Filter out articles older than max_age_days
     max_age_days = config["scoring"].get("max_age_days", 3)
@@ -1057,9 +1066,6 @@ def main():
         )
         conn.close()
         return
-
-    # Mark ALL fetched articles as seen (avoid re-processing)
-    mark_seen(conn, all_articles)
 
     # 3. Upload to Notion (even if no articles passed curation)
     upload_to_notion(curated, errors, config)
