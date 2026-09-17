@@ -110,6 +110,18 @@ def _extract_text_from_html(html: str) -> str:
     return text.replace("\x00", "")
 
 
+def _fetch_html_text(url: str, timeout: int = 15) -> str:
+    """GET *url* and return its readable text, or "" if it is not HTML."""
+    req = Request(url)
+    req.add_header("User-Agent", _DEFAULT_UA)
+    with urlopen(req, timeout=timeout) as resp:
+        content_type = resp.headers.get("Content-Type", "")
+        if "text/html" not in content_type and "application/xhtml" not in content_type:
+            return ""
+        raw = resp.read().decode("utf-8", errors="replace")
+    return _extract_text_from_html(raw)
+
+
 def fetch_article_body(article: "Article", timeout: int = 15) -> str:
     """Fetch the full body text of an article URL."""
     parsed = urlparse(article.link)
@@ -117,15 +129,7 @@ def fetch_article_body(article: "Article", timeout: int = 15) -> str:
         log.debug("Skipping non-HTTP URL: %s", article.link)
         return ""
     try:
-        req = Request(article.link)
-        req.add_header("User-Agent",
-                       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) NewsCurator/1.0")
-        with urlopen(req, timeout=timeout) as resp:
-            content_type = resp.headers.get("Content-Type", "")
-            if "text/html" not in content_type and "application/xhtml" not in content_type:
-                return ""
-            raw = resp.read().decode("utf-8", errors="replace")
-        return _extract_text_from_html(raw)
+        return _fetch_html_text(article.link, timeout)
     except Exception as e:
         log.debug("Failed to fetch body for %s: %s", article.link, e)
         return ""
