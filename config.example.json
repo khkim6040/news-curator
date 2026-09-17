@@ -16,6 +16,31 @@
       "name": "InfoQ",
       "url": "https://feed.infoq.com/",
       "headers": {}
+    },
+    {
+      "name": "Reddit Programming",
+      "url": "https://www.reddit.com/r/programming+java+kotlin+devops/top/.rss?t=day&limit=25",
+      "headers": {}
+    },
+    {
+      "name": "Reddit ExperiencedDevs",
+      "url": "https://www.reddit.com/r/ExperiencedDevs+softwarearchitecture/top/.rss?t=day&limit=25",
+      "headers": {}
+    },
+    {
+      "name": "Reddit LLM",
+      "url": "https://www.reddit.com/r/LocalLLaMA/top/.rss?t=day&limit=25",
+      "headers": {}
+    },
+    {
+      "name": "Hacker News Best",
+      "url": "https://hnrss.org/best?points=100",
+      "headers": {}
+    },
+    {
+      "name": "Lobsters",
+      "url": "https://lobste.rs/rss",
+      "headers": {}
     }
   ],
   "curator": {
