@@ -411,6 +411,18 @@ def _build_prompt(articles: list[Article], config: dict) -> str:
 {article_text}"""
 
 
+def _claude_works(path: str | Path) -> bool:
+    """True if *path* actually runs as the claude CLI.
+
+    A half-installed npm package leaves a shebang-less shell stub named
+    `claude` that exists and is executable but fails with Exec format error.
+    """
+    try:
+        return subprocess.run([str(path), "--version"], capture_output=True, timeout=15).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
 def _resolve_claude_bin() -> str:
     """Locate the `claude` CLI robustly.
 
@@ -422,7 +434,7 @@ def _resolve_claude_bin() -> str:
     applies when nothing is found.
     """
     found = shutil.which("claude")
-    if found:
+    if found and _claude_works(found):
         return found
 
     home = Path.home()
@@ -445,7 +457,7 @@ def _resolve_claude_bin() -> str:
         candidates.extend(sorted(nvm_versions.glob("*/bin/claude"), reverse=True))
 
     for c in candidates:
-        if c.exists():
+        if c.exists() and _claude_works(c):
             return str(c)
 
     return "claude"

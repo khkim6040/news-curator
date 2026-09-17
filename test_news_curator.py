@@ -24,6 +24,7 @@ from news_curator import (
     validate_config,
     curate_with_claude,
     _resolve_claude_bin,
+    _claude_works,
     _estimate_reading_time,
     _compute_title,
     _build_prompt,
@@ -902,7 +903,8 @@ class TestCurateWithClaudeErrorLogging(unittest.TestCase):
 
 class TestResolveClaudeBin(unittest.TestCase):
     def test_prefers_path_lookup(self):
-        with patch("news_curator.shutil.which", return_value="/path/from/which/claude"):
+        with patch("news_curator.shutil.which", return_value="/path/from/which/claude"), \
+             patch("news_curator._claude_works", return_value=True):
             self.assertEqual(_resolve_claude_bin(), "/path/from/which/claude")
 
     def test_falls_back_to_nvm_when_not_on_path(self):
@@ -918,8 +920,26 @@ class TestResolveClaudeBin(unittest.TestCase):
             claude_path.write_text("#!/bin/sh\n")
 
             with patch("news_curator.shutil.which", return_value=None), \
-                 patch("news_curator.Path.home", return_value=home):
+                 patch("news_curator.Path.home", return_value=home), \
+                 patch("news_curator._claude_works", return_value=True):
                 self.assertEqual(_resolve_claude_bin(), str(claude_path))
+
+    def test_skips_broken_binary_on_path(self):
+        """Regression: a half-installed npm stub on PATH (Exec format error) must not win."""
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            nvm_bin = home / ".nvm" / "versions" / "node" / "v22.13.1" / "bin"
+            nvm_bin.mkdir(parents=True)
+            good = nvm_bin / "claude"
+            good.write_text("#!/bin/sh\n")
+
+            with patch("news_curator.shutil.which", return_value="/opt/homebrew/bin/claude"), \
+                 patch("news_curator.Path.home", return_value=home), \
+                 patch("news_curator._claude_works", side_effect=lambda p: str(p) == str(good)):
+                self.assertEqual(_resolve_claude_bin(), str(good))
 
     def test_returns_bare_name_when_nothing_found(self):
         import tempfile
@@ -929,6 +949,20 @@ class TestResolveClaudeBin(unittest.TestCase):
             with patch("news_curator.shutil.which", return_value=None), \
                  patch("news_curator.Path.home", return_value=Path(tmp)):
                 self.assertEqual(_resolve_claude_bin(), "claude")
+
+
+class TestClaudeWorks(unittest.TestCase):
+    def test_true_on_zero_exit(self):
+        with patch("news_curator.subprocess.run", return_value=MagicMock(returncode=0)):
+            self.assertTrue(_claude_works("/x/claude"))
+
+    def test_false_on_nonzero_exit(self):
+        with patch("news_curator.subprocess.run", return_value=MagicMock(returncode=1)):
+            self.assertFalse(_claude_works("/x/claude"))
+
+    def test_false_on_exec_format_error(self):
+        with patch("news_curator.subprocess.run", side_effect=OSError(8, "Exec format error")):
+            self.assertFalse(_claude_works("/x/claude"))
 
 
 if __name__ == "__main__":
