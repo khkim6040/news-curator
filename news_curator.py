@@ -11,6 +11,7 @@ import signal
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
@@ -18,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from html import unescape
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
 from xml.etree import ElementTree as ET
@@ -77,6 +78,7 @@ class Article:
     pub_date: str
     source: str
     categories: list[str] = field(default_factory=list)
+    comments_url: str = ""
     body: str = ""
     score: int = 0
     summary: str = ""
@@ -123,16 +125,97 @@ def _fetch_html_text(url: str, timeout: int = 15) -> str:
 
 
 def fetch_article_body(article: "Article", timeout: int = 15) -> str:
-    """Fetch the full body text of an article URL."""
+    """Fetch the full body text of an article URL, plus its community discussion if any."""
     parsed = urlparse(article.link)
     if parsed.scheme not in ("http", "https"):
         log.debug("Skipping non-HTTP URL: %s", article.link)
         return ""
     try:
-        return _fetch_html_text(article.link, timeout)
+        if (parsed.hostname or "").endswith("reddit.com"):
+            return _fetch_reddit_thread(article.link, timeout)
+        body = _fetch_html_text(article.link, timeout)
+        if "news.ycombinator.com" in article.comments_url:
+            body = f"{body}\n\n{_fetch_hn_thread(article.comments_url, timeout)}".strip()
+        return body
     except Exception as e:
         log.debug("Failed to fetch body for %s: %s", article.link, e)
         return ""
+
+
+# ---------------------------------------------------------------------------
+# Community discussions (Reddit / Hacker News comment threads)
+# ---------------------------------------------------------------------------
+
+_ATOM_NS = {"a": "http://www.w3.org/2005/Atom"}
+_MAX_COMMENTS = 10
+_MAX_COMMENT_CHARS = 500
+
+# ponytail: global lock + honor x-ratelimit-reset; www.reddit.com allows 1 unauthenticated
+# request per minute per IP (OAuth app creation is closed to new developers since 2025-11).
+_reddit_lock = threading.Lock()
+_reddit_next_ok = 0.0
+
+
+def _reddit_get(url: str, timeout: int = 15) -> str:
+    """GET from www.reddit.com, serialized and paced by Reddit's rate-limit headers."""
+    global _reddit_next_ok
+    with _reddit_lock:
+        for attempt in range(2):
+            wait = _reddit_next_ok - time.monotonic()
+            if wait > 0:
+                time.sleep(wait)
+            req = Request(url)
+            req.add_header("User-Agent", _DEFAULT_UA)
+            try:
+                with urlopen(req, timeout=timeout) as resp:
+                    reset = float(resp.headers.get("x-ratelimit-reset", 60))
+                    text = resp.read().decode("utf-8", errors="replace")
+                _reddit_next_ok = time.monotonic() + reset + 1
+                return text
+            except HTTPError as e:
+                if e.code != 429 or attempt == 1:
+                    raise
+                _reddit_next_ok = time.monotonic() + float(e.headers.get("x-ratelimit-reset", 60)) + 1
+
+
+def _format_comments(comments: list[str]) -> str:
+    comments = [c[:_MAX_COMMENT_CHARS] for c in comments if c][:_MAX_COMMENTS]
+    return "댓글:\n" + "\n".join(f"- {c}" for c in comments) if comments else ""
+
+
+def _fetch_reddit_thread(link: str, timeout: int = 15) -> str:
+    """Return linked article (if any) + selftext + top comments for a Reddit post."""
+    xml = _reddit_get(link.rstrip("/") + f".rss?limit={_MAX_COMMENTS}", timeout)
+    entries = ET.fromstring(_sanitize_xml(xml)).findall("a:entry", _ATOM_NS)
+    if not entries:
+        return ""
+    post_html = entries[0].findtext("a:content", "", _ATOM_NS) or ""
+    parts = []
+    m = re.search(r'href="([^"]+)">\[link\]', post_html)
+    if m and "reddit.com" not in m.group(1):
+        try:
+            parts.append(_fetch_html_text(m.group(1), timeout))
+        except Exception as e:
+            log.debug("Failed to fetch linked article %s: %s", m.group(1), e)
+    parts.append(strip_html(post_html).split("submitted by")[0].strip())
+    parts.append(_format_comments(
+        [strip_html(e.findtext("a:content", "", _ATOM_NS) or "") for e in entries[1:]]))
+    return "\n\n".join(p for p in parts if p)
+
+
+def _fetch_hn_thread(comments_url: str, timeout: int = 15) -> str:
+    """Return top-level comments of a Hacker News item via the Algolia API."""
+    item_id = parse_qs(urlparse(comments_url).query).get("id", [""])[0]
+    if not item_id.isdigit():
+        return ""
+    try:
+        req = Request(f"https://hn.algolia.com/api/v1/items/{item_id}")
+        with urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read().decode("utf-8", errors="replace"))
+    except Exception as e:
+        log.debug("Failed to fetch HN thread %s: %s", item_id, e)
+        return ""
+    return _format_comments([strip_html(c.get("text") or "") for c in data.get("children", [])])
 
 
 def parse_pub_date(date_str: str) -> datetime | None:
@@ -238,6 +321,12 @@ _DEFAULT_UA = (
 def fetch_feed(feed_cfg: dict) -> str | None:
     url = feed_cfg["url"]
     headers = feed_cfg.get("headers", {})
+    try:
+        if (urlparse(url).hostname or "").endswith("reddit.com"):
+            return _reddit_get(url)
+    except (HTTPError, URLError) as e:
+        log.error("Failed to fetch %s: %s", feed_cfg["name"], e)
+        return None
     req = Request(url)
     if "User-Agent" not in headers:
         req.add_header("User-Agent", _DEFAULT_UA)
@@ -307,6 +396,7 @@ def parse_feed(xml_text: str, source_name: str) -> list[Article]:
             articles.append(Article(
                 title=title, link=link, description=desc[:500],
                 pub_date=pub_date, source=source_name, categories=categories,
+                comments_url=item.findtext("comments", "").strip(),
             ))
     return articles
 
@@ -383,6 +473,7 @@ def _build_prompt(articles: list[Article], config: dict) -> str:
 - 컨퍼런스 발표 요약/공지 기사: 본문에 구현 디테일 없이 발표 내용만 요약한 경우 최대 7점.
 - 2차 정리 콘텐츠: 원본 블로그/논문을 재정리한 기사는 1점 감점. 원본을 직접 읽는 것이 더 가치 있다.
 - 본문이 극히 짧은 기사: 본문이 릴리스 공지, 한 줄 발표 수준이면 최대 5점.
+- 본문에 '댓글:' 섹션이 있는 커뮤니티 글(Reddit, HN)은 댓글의 실무 경험·반론·논쟁의 깊이도 본문과 함께 평가한다. 논의 자체가 유의미하면 원문이 짧아도 감점하지 않는다.
 - 제목이 매력적이어도 본문의 기술적 깊이가 얕으면 제목에 현혹되지 말 것.
 - AI 코딩 도구(Claude Code, Cursor, Copilot 등)의 단순 리뷰/비교/팁 기사: 최대 6점. 단, AI를 백엔드 시스템에 직접 통합하는 기술적 사례(이상거래 탐지, 테스트 자동화 파이프라인 등)는 예외.
 
