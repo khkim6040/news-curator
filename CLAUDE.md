@@ -46,5 +46,6 @@ Notion output lists articles sorted by score (highest first) without exposing sc
 - Feed parsing handles both RSS 2.0 (`<item>`) and Atom (`<entry>`) formats with `xml.etree.ElementTree`
 - Claude's JSON response is parsed with a fallback that strips markdown code fences, then uses bracket-depth tracking to extract the first balanced `[...]` array
 - ALL fetched articles (not just curated ones) are marked as seen in SQLite to prevent re-processing
+- Community discussions: Reddit links are fetched as `permalink/.rss` (linked article + selftext + top 10 comments); HN items (RSS `<comments>` → `Article.comments_url`) get top comments from the Algolia API appended to the body. `www.reddit.com` allows 1 unauthenticated request/min per IP, so `_reddit_get()` serializes Reddit calls behind a lock and paces them by `x-ratelimit-reset` — expect several extra minutes of runtime per run
 - Notion page properties use Korean field names: `이름` (title), `작성일` (date)
 - Notion API version is pinned to `2022-06-28` in `_notion_request()`
