@@ -897,6 +897,41 @@ class TestCurateWithClaudeErrorLogging(unittest.TestCase):
         self.assertFalse(stdout_logged, f"stdout should not be logged: {cm.output}")
 
 
+class TestCurateWithClaudeIndexTitleMismatch(unittest.TestCase):
+    """Claude가 index를 잘못 적어도 title로 올바른 기사에 매핑하는지 검증."""
+
+    def _run(self, selections):
+        articles = [
+            Article(title=t, link=f"https://example.com/{i}", description="d",
+                    pub_date="2026-10-15", source="s")
+            for i, t in enumerate(["ESM 전환기", "Spark Connect", "Scraping websites"])
+        ]
+        config = {
+            "curator": {"interests": ["tech"], "max_articles": 5},
+            "scoring": {"min_score": 5, "max_articles_per_source": 3},
+        }
+        with patch("news_curator._build_prompt", return_value="p"), \
+             patch("news_curator.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0, stderr="", stdout=json.dumps(selections))
+            return curate_with_claude(articles, config)
+
+    def test_wrong_index_remapped_by_title(self):
+        result = self._run([{"index": 2, "title": "ESM 전환기", "score": 8, "summary": "ESM 요약"}])
+        self.assertEqual([(a.title, a.summary) for a in result], [("ESM 전환기", "ESM 요약")])
+
+    def test_unknown_title_dropped(self):
+        result = self._run([{"index": 2, "title": "없는 기사", "score": 8, "summary": "x"}])
+        self.assertEqual(result, [])
+
+    def test_matching_or_missing_title_uses_index(self):
+        result = self._run([
+            {"index": 1, "title": "Spark Connect", "score": 9},
+            {"index": 2, "score": 8},
+        ])
+        self.assertEqual([a.title for a in result], ["Spark Connect", "Scraping websites"])
+
+
 # ---------------------------------------------------------------------------
 # _resolve_claude_bin — robust CLI discovery (launchd PATH regression)
 # ---------------------------------------------------------------------------
