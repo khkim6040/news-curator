@@ -6,6 +6,8 @@
     <key>Label</key>
     <string>com.gwanho.news-curator</string>
 
+    <!-- launchd가 직접 실행하는 파일은 시스템 바이너리(caffeinate)로 둔다.
+         brew python을 직접 지정하면 업그레이드 후 EX_CONFIG(78)로 spawn이 조용히 실패한다. -->
     <key>ProgramArguments</key>
     <array>
         <string>/usr/bin/caffeinate</string>
@@ -20,9 +22,9 @@
     <key>StartCalendarInterval</key>
     <dict>
         <key>Hour</key>
-        <integer>8</integer>
+        <integer>7</integer>
         <key>Minute</key>
-        <integer>0</integer>
+        <integer>40</integer>
     </dict>
 
     <key>StandardOutPath</key>

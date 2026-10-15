@@ -300,6 +300,17 @@ def record_run(conn: sqlite3.Connection, total_fetched: int, total_new: int,
              total_fetched, total_new, total_curated, error_count)
 
 
+def effective_max_age_days(conn: sqlite3.Connection, configured: int,
+                           now: datetime | None = None) -> int:
+    """Widen the age window by the days missed since the last recorded run,
+    so a run after an outage catches up instead of dropping those articles."""
+    last = conn.execute("SELECT MAX(run_at) FROM run_history").fetchone()[0]
+    if not last:
+        return configured
+    gap = (now or datetime.now()) - datetime.fromisoformat(last)
+    return configured + max(0, gap.days - 1)
+
+
 def cleanup_db(conn: sqlite3.Connection, days: int = 30):
     cutoff = (datetime.now() - timedelta(days=days)).isoformat()
     n = conn.execute("DELETE FROM seen_articles WHERE seen_at < ?", (cutoff,)).rowcount
@@ -490,6 +501,7 @@ def _build_prompt(articles: list[Article], config: dict) -> str:
 [
   {{
     "index": 0,
+    "title": "[0]번 기사의 제목을 그대로 복사",
     "score": 8,
     "summary": "Kafka 클러스터를 3→5노드로 확장하면서 파티션 재배치 시 발생한 컨슈머 랙 급증 문제를 다룬다. 롤링 리밸런싱과 스로틀링 설정을 적용해 무중단 확장에 성공한 과정을 정리한다.",
     "tags": ["태그1", "태그2"],
@@ -690,11 +702,18 @@ def curate_with_claude(articles: list[Article], config: dict) -> list[Article]:
             summary = sel.get("summary", "")
             tags = sel.get("tags", [])
             reason = sel.get("reason", "")
+            title = str(sel.get("title", "")).strip()
         elif isinstance(sel, (int, float)):
             idx = int(sel)
-            score, summary, tags, reason = 0, "", [], ""
+            score, summary, tags, reason, title = 0, "", [], "", ""
         else:
             continue
+        # LLMs miscount indexes in long lists; the echoed title is the source of truth
+        if title and not (isinstance(idx, int) and 0 <= idx < len(articles)
+                          and articles[idx].title.strip() == title):
+            match = next((i for i, a in enumerate(articles) if a.title.strip() == title), None)
+            log.warning("Claude index %s does not match title %r → remapped to %s", idx, title, match)
+            idx = match
         if idx is None or not (0 <= idx < len(articles)):
             continue
         a = articles[idx]
@@ -1105,7 +1124,11 @@ def main():
         mark_seen(conn, all_fetched)
 
     # Filter out articles older than max_age_days
-    max_age_days = config["scoring"].get("max_age_days", 3)
+    configured_max_age = config["scoring"].get("max_age_days", 3)
+    max_age_days = effective_max_age_days(conn, configured_max_age)
+    if max_age_days != configured_max_age:
+        log.warning("Missed runs detected — widening max_age_days %d → %d to catch up",
+                    configured_max_age, max_age_days)
     cutoff_dt = datetime.now(timezone.utc) - timedelta(days=max_age_days)
     before_filter = len(all_articles)
     filtered = []
