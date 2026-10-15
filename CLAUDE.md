@@ -16,7 +16,7 @@ Single-script application (`news_curator.py`) that runs as a daily batch job:
 
 1. **Fetch** — Downloads RSS/Atom feeds defined in `config.json` via `urllib`
 2. **Dedup** — Filters out previously seen articles using SQLite (`seen.db`)
-3. **Date Filter** — Drops articles older than `max_age_days` (default 3); articles with unparseable dates are kept
+3. **Date Filter** — Drops articles older than `max_age_days` (default 3), widened by the days missed since the last `run_history` entry so a run after an outage catches up; articles with unparseable dates are kept
 4. **Curate** — Sends all new articles to Claude CLI (`claude -p`) in a single prompt; Claude returns a JSON array of scored/summarized selections
 5. **Publish** — Creates a Notion database page with the curated digest via the Notion API
 

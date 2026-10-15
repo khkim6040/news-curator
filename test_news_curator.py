@@ -21,6 +21,7 @@ from news_curator import (
     mark_seen,
     cleanup_db,
     record_run,
+    effective_max_age_days,
     validate_config,
     curate_with_claude,
     _resolve_claude_bin,
@@ -329,6 +330,24 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(row[3], 50)   # total_new
         self.assertEqual(row[4], 10)   # total_curated
         self.assertEqual(row[5], 2)    # error_count
+
+    def _set_last_run(self, run_at: datetime):
+        self.conn.execute("INSERT INTO run_history (run_at) VALUES (?)", (run_at.isoformat(),))
+
+    def test_effective_max_age_no_history_uses_config(self):
+        self.assertEqual(effective_max_age_days(self.conn, 3), 3)
+
+    def test_effective_max_age_daily_run_uses_config(self):
+        now = datetime(2026, 10, 15, 7, 40)
+        self._set_last_run(now - timedelta(days=1, minutes=-20))  # 어제 08:00
+        self.assertEqual(effective_max_age_days(self.conn, 3, now), 3)
+        self._set_last_run(now - timedelta(days=1, minutes=5))    # 어제 07:35
+        self.assertEqual(effective_max_age_days(self.conn, 3, now), 3)
+
+    def test_effective_max_age_widens_by_missed_days(self):
+        now = datetime(2026, 10, 15, 7, 40)
+        self._set_last_run(datetime(2026, 10, 10, 8, 6))  # 10/11~10/14 4일 누락
+        self.assertEqual(effective_max_age_days(self.conn, 3, now), 6)
 
 
 # ---------------------------------------------------------------------------

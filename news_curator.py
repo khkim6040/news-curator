@@ -300,6 +300,17 @@ def record_run(conn: sqlite3.Connection, total_fetched: int, total_new: int,
              total_fetched, total_new, total_curated, error_count)
 
 
+def effective_max_age_days(conn: sqlite3.Connection, configured: int,
+                           now: datetime | None = None) -> int:
+    """Widen the age window by the days missed since the last recorded run,
+    so a run after an outage catches up instead of dropping those articles."""
+    last = conn.execute("SELECT MAX(run_at) FROM run_history").fetchone()[0]
+    if not last:
+        return configured
+    gap = (now or datetime.now()) - datetime.fromisoformat(last)
+    return configured + max(0, gap.days - 1)
+
+
 def cleanup_db(conn: sqlite3.Connection, days: int = 30):
     cutoff = (datetime.now() - timedelta(days=days)).isoformat()
     n = conn.execute("DELETE FROM seen_articles WHERE seen_at < ?", (cutoff,)).rowcount
@@ -1113,7 +1124,11 @@ def main():
         mark_seen(conn, all_fetched)
 
     # Filter out articles older than max_age_days
-    max_age_days = config["scoring"].get("max_age_days", 3)
+    configured_max_age = config["scoring"].get("max_age_days", 3)
+    max_age_days = effective_max_age_days(conn, configured_max_age)
+    if max_age_days != configured_max_age:
+        log.warning("Missed runs detected — widening max_age_days %d → %d to catch up",
+                    configured_max_age, max_age_days)
     cutoff_dt = datetime.now(timezone.utc) - timedelta(days=max_age_days)
     before_filter = len(all_articles)
     filtered = []
