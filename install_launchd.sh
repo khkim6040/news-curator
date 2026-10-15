@@ -32,7 +32,7 @@ echo "✓ launchd 등록 완료"
 # 상태 확인
 launchctl print "gui/$(id -u)/com.gwanho.news-curator" 2>/dev/null | head -5
 echo ""
-echo "매일 오전 8시에 news_curator.py가 실행됩니다."
+echo "매일 오전 7시 40분에 news_curator.py가 실행됩니다."
 echo ""
 echo "유용한 명령어:"
 echo "  상태 확인: launchctl print gui/\$(id -u)/com.gwanho.news-curator"
