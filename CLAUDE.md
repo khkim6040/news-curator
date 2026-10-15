@@ -31,6 +31,7 @@ Notion output lists articles sorted by score (highest first) without exposing sc
 - `config.example.json` — Template config with placeholder values
 - `seen.db` — SQLite database for article deduplication (auto-created, auto-pruned after `retention_days`)
 - `curator.log` — Runtime log file
+- `.github/workflows/digest-watchdog.yml` — Daily 10:00 KST check that today's Notion page exists (fails → GitHub email); monthly empty keepalive commit so the public repo's schedule isn't auto-disabled
 
 ## Config Structure (`config.json`)
 
